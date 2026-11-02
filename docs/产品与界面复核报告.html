@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>产品与界面复核报告 · 双语助手 v1.4.0</title>
+<style>
+:root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f0f2f5;
+    --line: #dfe3e9;
+    --line-strong: #c6ccd6;
+    --text: #1c2024;
+    --text-2: #4d5560;
+    --text-3: #7b848f;
+    --accent: #2d7dd2;
+    --accent-ink: #17558f;
+    --accent-soft: #eaf2fb;
+    --ok: #1f7a4d;
+    --ok-soft: #e8f5ee;
+    --bad: #b3261e;
+    --bad-soft: #fdeceb;
+    --warn: #8a5a00;
+    --warn-soft: #fdf4e3;
+    --code-bg: #f2f4f7;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    /* ── 刻度 ────────────────────────────────────────────────
+       间距 / 圆角 / 字号一律取自下面的 token，样式里不写裸像素值。
+       前段与设置页、弹窗共用同一套刻度，文档因需要更大留白而延伸
+       出 --sp-7..--sp-9 三档。 */
+    --sp-0: 2px;
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+    --sp-6: 32px;
+    --sp-7: 48px;
+    --sp-8: 64px;
+    --sp-9: 96px;
+
+    --r-xs: 4px;
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-full: 999px;
+
+    --fs-1: 12px;   /* 角标、代码、元信息 */
+    --fs-2: 13px;   /* 表格、注释、次要信息 */
+    --fs-3: 14px;   /* 目录链接、四级标题 */
+    --fs-4: 15px;   /* 正文 */
+    --fs-5: 16px;   /* 导语、三级标题 */
+    --fs-6: 18px;   /* 卡片数字（小号）*/
+    --fs-7: 24px;   /* 二级标题、卡片数字 */
+    --fs-8: 34px;   /* 文档主标题 */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181c;
+      --surface: #1c2025;
+      --surface-2: #23282e;
+      --line: #2f353c;
+      --line-strong: #414952;
+      --text: #e8ebee;
+      --text-2: #b3bac3;
+      --text-3: #868f99;
+      --accent: #63a9f0;
+      --accent-ink: #a8cdf5;
+      --accent-soft: #1d2c3d;
+      --ok: #5fce9a;
+      --ok-soft: #16301f;
+      --bad: #f2857c;
+      --bad-soft: #331d1b;
+      --warn: #e0b164;
+      --warn-soft: #322718;
+      --code-bg: #23282e;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 var(--sp-5) var(--sp-9); }
+
+  /* ── 页头 ───────────────────────────────────────────── */
+  header.doc {
+    padding: var(--sp-7) 0 var(--sp-6);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: var(--sp-2);
+  }
+  .kicker {
+    font: 600 var(--fs-1)/1 var(--mono);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: var(--sp-4);
+  }
+  header.doc h1 {
+    font-size: var(--fs-8); line-height: 1.25; margin: 0 0 var(--sp-3);
+    letter-spacing: -0.01em; font-weight: 700;
+  }
+  header.doc .sub {
+    font-size: var(--fs-5); color: var(--text-2); margin: 0 0 var(--sp-5); max-width: 780px;
+  }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3);
+  }
+  .meta span {
+    font: 500 var(--fs-2)/1 var(--mono);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--text-2);
+    padding: var(--sp-2) var(--sp-3); border-radius: var(--r-full);
+  }
+  .meta span b { color: var(--text); font-weight: 600; }
+
+  /* ── 目录 ───────────────────────────────────────────── */
+  nav.toc {
+    margin: var(--sp-6) 0 var(--sp-7);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: var(--sp-4) var(--sp-5);
+  }
+  nav.toc h2 {
+    font-size: var(--fs-1); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--text-3); margin: 0 0 var(--sp-3); font-weight: 600;
+  }
+  nav.toc ol { margin: 0; padding: 0; list-style: none;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--sp-1) var(--sp-5); }
+  nav.toc a {
+    color: var(--text-2); text-decoration: none; font-size: var(--fs-3);
+    display: block; padding: var(--sp-1) 0; border-bottom: 1px solid transparent;
+  }
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc i { color: var(--text-3); font-style: normal; font: 500 var(--fs-1)/1 var(--mono); margin-right: var(--sp-2); }
+
+  /* ── 章节 ───────────────────────────────────────────── */
+  section { margin: 0 0 var(--sp-2); scroll-margin-top: var(--sp-5); }
+  section > h2 {
+    font-size: var(--fs-7); margin: var(--sp-7) 0 var(--sp-2); font-weight: 700; letter-spacing: -0.005em;
+    padding-top: var(--sp-5); border-top: 1px solid var(--line);
+  }
+  section > h2 .num {
+    font: 600 var(--fs-2)/1 var(--mono); color: var(--accent);
+    display: block; margin-bottom: var(--sp-3); letter-spacing: .08em;
+  }
+  h3 { font-size: var(--fs-5); margin: var(--sp-6) 0 var(--sp-3); font-weight: 650; }
+  h4 { font-size: var(--fs-3); margin: var(--sp-5) 0 var(--sp-2); font-weight: 650; color: var(--text-2); }
+  p { margin: var(--sp-3) 0; color: var(--text-2); }
+  p strong, li strong { color: var(--text); font-weight: 650; }
+  ul, ol { margin: var(--sp-3) 0; padding-left: var(--sp-5); color: var(--text-2); }
+  li { margin: var(--sp-1) 0; }
+  a { color: var(--accent); }
+
+  code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--code-bg); border: 1px solid var(--line);
+    padding: var(--sp-0) var(--sp-1); border-radius: var(--r-xs); color: var(--text);
+    white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: var(--sp-4); overflow-x: auto; margin: var(--sp-4) 0;
+    font-family: var(--mono); font-size: var(--fs-2); line-height: 1.7; color: var(--text);
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; white-space: pre; }
+  pre .c { color: var(--text-3); }
+
+  /* ── 表格 ───────────────────────────────────────────── */
+  .tbl { overflow-x: auto; margin: var(--sp-4) 0; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--fs-2); }
+  th, td { text-align: left; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    background: var(--surface-2); font-weight: 650; font-size: var(--fs-2);
+    color: var(--text); white-space: nowrap; border-bottom: 1px solid var(--line-strong);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td code, th code { white-space: nowrap; }
+  .num-cell { text-align: right; font-family: var(--mono); font-size: var(--fs-2); white-space: nowrap; }
+  .zero { color: var(--ok); font-weight: 700; }
+  .nonzero { color: var(--bad); font-weight: 700; }
+
+  .tag {
+    display: inline-block; font: 600 var(--fs-1)/1 var(--mono); padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--r-sm); border: 1px solid; white-space: nowrap;
+  }
+  .tag.pass { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+  .tag.fail { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+  .tag.keep { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .tag.warn { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+
+  /* ── 卡片 / 提示 ────────────────────────────────────── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--sp-4); margin: var(--sp-4) 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: var(--sp-4);
+  }
+  .card .k { font: 600 var(--fs-7)/1.1 var(--mono); color: var(--accent); letter-spacing: -0.02em; }
+  .card .k.small { font-size: var(--fs-6); }
+  .card .l { font-size: var(--fs-2); color: var(--text-3); margin-top: var(--sp-2); line-height: 1.5; }
+
+  .note {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--r-md) var(--r-md) 0; padding: var(--sp-3) var(--sp-4); margin: var(--sp-4) 0; font-size: var(--fs-2);
+  }
+  .note.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .note.bad { border-left-color: var(--bad); background: var(--bad-soft); }
+  .note.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .note .t { font-weight: 650; color: var(--text); display: block; margin-bottom: var(--sp-1); }
+  .note p { margin: var(--sp-1) 0; color: var(--text-2); }
+  .note p:last-child { margin-bottom: 0; }
+
+  figure { margin: var(--sp-5) 0; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: var(--fs-2); color: var(--text-3); margin-top: var(--sp-2); text-align: center; }
+  .figbox { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+
+  /* ── SVG 配色 ───────────────────────────────────────────
+     SVG 的 presentation attribute（fill="…" / stroke="…"）里不能写 var()，
+     浏览器会当作非法值忽略并回退成黑色。因此配色一律走样式表类。
+     样式表的优先级高于 presentation attribute，可以安全覆盖。       */
+  figure svg { color: var(--text); }
+  .f-cur    { fill: currentColor; }
+  .f-none   { fill: none; }
+  .f-surf   { fill: var(--surface); }
+  .f-surf2  { fill: var(--surface-2); }
+  .f-acc    { fill: var(--accent); }
+  .f-accs   { fill: var(--accent-soft); }
+  .f-ok     { fill: var(--ok); }
+  .f-oks    { fill: var(--ok-soft); }
+  .f-bad    { fill: var(--bad); }
+  .f-bads   { fill: var(--bad-soft); }
+  .f-warn   { fill: var(--warn); }
+  .f-warns  { fill: var(--warn-soft); }
+  .f-t3     { fill: var(--text-3); }
+  .f-t2     { fill: var(--text-2); }
+  .s-line   { stroke: var(--line-strong); }
+  .s-acc    { stroke: var(--accent); }
+  .s-ok     { stroke: var(--ok); }
+  .s-bad    { stroke: var(--bad); }
+  .s-warn   { stroke: var(--warn); }
+  .s-cur    { stroke: currentColor; }
+
+  hr.soft { border: 0; border-top: 1px dashed var(--line-strong); margin: var(--sp-6) 0; }
+
+  footer.doc {
+    margin-top: var(--sp-8); padding-top: var(--sp-5); border-top: 1px solid var(--line);
+    font-size: var(--fs-2); color: var(--text-3);
+  }
+  footer.doc code { font-size: var(--fs-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="doc">
+    <div class="kicker">Product &amp; UI Review · 2026-09-27</div>
+    <h1>产品与界面复核报告</h1>
+    <p class="sub">
+      复核对象：双语助手（Chrome MV3 扩展）v1.4.0 —— 工具栏弹窗、设置页、设计说明文档。
+      本文回答两个具体问题：<strong>是否动用了产品与业务视角</strong>，以及<strong>界面设计是否满足 UI 规范</strong>。
+      结论分「已满足 / 已修复 / 有理由的偏差 / 待办」四类，不是清一色的对勾。
+    </p>
+    <div class="meta">
+      <span>v1.4.0</span>
+      <span>UI 法则 16 条</span>
+      <span>竞品 5 家</span>
+      <span>一审：UI 规范</span>
+      <span>二审：产品 + 业务 + 用户 + 指标</span>
+      <span>一手用户数据：0</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <h2>目录</h2>
+    <ol>
+      <li><a href="#s0"><i>00</i>复核结论</a></li>
+      <li><a href="#s1"><i>01</i>复核范围、角色与依据</a></li>
+      <li><a href="#s2"><i>02</i>UI 规范符合性（16 条逐条）</a></li>
+      <li><a href="#s3"><i>03</i>产品视角复核</a></li>
+      <li><a href="#s4"><i>04</i>业务视角：竞品简报与定位</a></li>
+      <li><a href="#s5"><i>05</i>用户视角：待验证假设</a></li>
+      <li><a href="#s6"><i>06</i>指标框架（隐私约束下）</a></li>
+      <li><a href="#s7"><i>07</i>缺陷清单与优先级</a></li>
+      <li><a href="#s8"><i>08</i>验证与复现</a></li>
+    </ol>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s0">
+    <h2><span class="num">00</span>复核结论</h2>
+
+    <div class="cards">
+      <div class="card"><div class="k">14 / 16</div><div class="l">UI 法则硬性满足（2 条为有理由的已知偏差）</div></div>
+      <div class="card"><div class="k">3</div><div class="l">本轮新发现并已修复的真实缺陷</div></div>
+      <div class="card"><div class="k">1</div><div class="l">上一轮存在的流程缺口：未动用产品 / 业务视角</div></div>
+      <div class="card"><div class="k">0</div><div class="l">一手用户证据 —— 本文的假设全部待验证</div></div>
+    </div>
+
+    <h3>对两个问题的直接回答</h3>
+
+    <div class="note bad">
+      <span class="t">问题一：是否咨询了产品、业务 skill？</span>
+      <p>
+        <strong>上一轮没有，这是事实。</strong>当时本机未安装任何产品类或业务类 skill，
+        可用清单里与本任务沾边的只有 <code>ardot-ui-design</code>（UI 规范）与 <code>chrome-extension-mv3-build</code>（架构），
+        两者都不是产品/业务视角。所以上一轮只做了 UI 规范核对，<strong>并把这件事如实说成了「只做了 UI 核对」</strong>，
+        没有把 UI 核对包装成产品评审。
+      </p>
+      <p>
+        本轮由<strong>产品战略团队</strong>补做：按其手册第 3 节（竞品简报）、第 4 节（用户研究综合）、第 5 节（指标评审）
+        三条工作流并行复核，产出本文第 4、5、6 节。UI 那一节也重做过一遍，并且<strong>找出了上一轮漏掉的 3 处缺陷</strong>。
+      </p>
+    </div>
+
+    <div class="note">
+      <span class="t">问题二：设计是否满足 UI skill？</span>
+      <p>
+        依据 <code>ardot-ui-design/references/guidelines-web-app.md</code> 的 16 条结构、认知与产品品质法则逐条核对：
+        <strong>14 条硬性满足</strong>，<strong>2 条为有理由的已知偏差</strong>（第 2 条「主导区域」、第 8 条的「字号未 token 化」部分），
+        两条偏差都在第 2 节写明理由与代价，不打算改。
+      </p>
+      <p>
+        本轮新发现 3 处<strong>真实缺陷</strong>（不是风格偏好，是可验证的状态失真与语义错误），全部已修：
+        设置页页脚写死 <code>v1.0.0</code> 而 manifest 已是 <code>1.4.0</code>；
+        8 处 <code>&lt;label&gt;</code> 没有关联任何控件；设计说明文档自称 <code>v1.3.0</code>。
+      </p>
+    </div>
+
+    <h3>一句话总结</h3>
+    <p>
+      UI 层的问题已经收敛到一个可复现的检查脚本能守住的程度；
+      <strong>产品层的真问题不在界面，而在功能缺口</strong> —— 没有划词翻译、不支持 PDF 与多格式。
+      这两项是这一品类的入场券，不是加分项。详见第 4 节的行动建议。
+    </p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s1">
+    <h2><span class="num">01</span>复核范围、角色与依据</h2>
+
+    <p>为避免「复核过了」这种没有信息量的说法，先把谁审的、依据什么、证据落在哪写明。</p>
+
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:15%">视角</th><th style="width:24%">依据</th><th style="width:33%">方法</th><th>证据落在哪</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>UI 规范</strong></td>
+            <td><code>ardot-ui-design</code> → <code>guidelines-web-app.md</code>，16 条法则</td>
+            <td>逐条比对 <code>popup/</code>、<code>options/</code>、<code>docs/</code> 的真实标记与样式，给每条找出对应代码行；已修项用脚本复验</td>
+            <td>第 2 节；<code>tools/check-design-tokens.py</code></td>
+          </tr>
+          <tr>
+            <td><strong>产品</strong></td>
+            <td>产品战略团队手册 §1 需求 / §7 干系人 / §8 头脑风暴</td>
+            <td>按「一屏一个主目的」「渐进披露」「实体完整性」等条款审查两个界面的信息架构与层级</td>
+            <td>第 3 节；第 7 节待办</td>
+          </tr>
+          <tr>
+            <td><strong>业务（竞品）</strong></td>
+            <td>产品战略团队手册 §3 竞品简报；3 篇 2026 年第三方横评</td>
+            <td>功能对比矩阵 + SWOT + 定位判断；对「布局保真」这一差异化主张做正反两面评估</td>
+            <td>第 4 节；<code>competitive-brief.md</code> 的分析已并入本文</td>
+          </tr>
+          <tr>
+            <td><strong>用户</strong></td>
+            <td>产品战略团队手册 §4 用户研究综合</td>
+            <td><strong>无一手数据</strong>，故只产出可证伪的假设清单与验证方案，不给结论</td>
+            <td>第 5 节</td>
+          </tr>
+          <tr>
+            <td><strong>指标</strong></td>
+            <td>产品战略团队手册 §5 指标评审；产品自身的隐私承诺</td>
+            <td>先判「这个指标本机能不能算出来」，不能算的标注隐私权衡；再给北极星与守门指标</td>
+            <td>第 6 节</td>
+          </tr>
+          <tr>
+            <td><strong>工程</strong></td>
+            <td>仓库自带测试与两套真实浏览器基准</td>
+            <td>227 项断言 + 一份逐码元等价性证明 + 30 类宿主夹具的布局判据</td>
+            <td>第 8 节；<code>tools/bench-results/</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note warn">
+      <span class="t">证据强度的诚实说明</span>
+      <p>
+        本文的 UI 与工程两节是<strong>一手证据</strong>（直接读代码、跑基准）。
+        业务一节的竞品信息来自第三方媒体横评，属<strong>二手证据</strong>，可靠性中等，新鲜度 2026 年，
+        未逐一回归厂商官方页核实，凡不确定处标注「未核实」。
+        用户一节<strong>完全没有证据</strong>，所以那一节的每一条都标着「假设（未验证）」，请勿当作结论引用。
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s2">
+    <h2><span class="num">02</span>UI 规范符合性（16 条逐条）</h2>
+
+    <p>
+      判定口径：<span class="tag pass">满足</span> 有代码证据；
+      <span class="tag keep">已修</span> 本轮或上一轮修掉；
+      <span class="tag fail">偏差</span> 明知而不改，理由写在表下。
+    </p>
+
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:4%">#</th><th style="width:22%">条款</th><th style="width:9%">弹窗</th><th style="width:9%">设置页</th><th style="width:9%">设计文档</th><th>依据与证据</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>一屏一个主目的、一个主操作</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td class="c">不适用</td><td>弹窗只有一个主按钮「立即翻译」，其余为次级按钮与文字链；设置页每项独占一行</td></tr>
+          <tr><td>2</td><td>主导区域，避免等权重</td><td><span class="tag fail">偏差</span></td><td><span class="tag fail">偏差</span></td><td><span class="tag pass">满足</span></td><td>弹窗 3 个统计格、设置页 5 张卡片视觉等权重；文档靠字号阶梯与留白建立了明确主次</td></tr>
+          <tr><td>3</td><td>标签清晰，不用图标替代文字</td><td><span class="tag keep">已修</span></td><td><span class="tag keep">已修</span></td><td><span class="tag pass">满足</span></td><td>全中文标签，每个设置项都带解释文字；本轮补弹窗开关的 <code>aria-label</code>，并修掉 8 处不关联控件的 <code>&lt;label&gt;</code></td></tr>
+          <tr><td>4</td><td>渐进披露</td><td><span class="tag pass">满足</span></td><td><span class="tag fail">偏差</span></td><td><span class="tag pass">满足</span></td><td>弹窗只放高频项，冷门项指向设置页；设置页 5 张卡片全部展开，API Key 与「显示方式」同级 —— 见待办 P3</td></tr>
+          <tr><td>5</td><td>识别优于回忆</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td>控件位置固定，设置页一页到底，不要求用户记住上次状态</td></tr>
+          <tr><td>6</td><td>系统状态可见（加载/空/错/成功/受限）</td><td><span class="tag keep">已修</span></td><td><span class="tag keep">已修</span></td><td class="c">不适用</td><td>统计格初值改「读取中」、不可用态改「不可用」；缓存为 0 时显示「暂无缓存」；6 处状态节点加 <code>role="status" aria-live="polite"</code></td></tr>
+          <tr><td>7</td><td>操作层级，破坏性操作要区分</td><td><span class="tag pass">满足</span></td><td><span class="tag keep">已修</span></td><td class="c">不适用</td><td>「清空缓存」新增 <code>.btn--danger</code>，与同排的「下载语言包」形成视觉区分</td></tr>
+          <tr><td>8</td><td>结构一致，间距遵循一致刻度</td><td><span class="tag keep">已修</span></td><td><span class="tag keep">已修</span></td><td><span class="tag keep">已修</span></td><td>三处全部收敛到 <code>--sp-*</code> / <code>--r-*</code>，文档另加 <code>--fs-*</code>；两个产品界面的字号未 token 化 —— 见偏差 2</td></tr>
+          <tr><td>9</td><td>一屏内不混用密度</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td>两个界面各自维持单一紧凑密度；文档用宽松密度，与产品界面分属不同载体，不构成同屏混用</td></tr>
+          <tr><td>10</td><td>单一主轴，不做装饰性分隔</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td>均为单列主轴；分隔线只用于卡片分区，无纯装饰线</td></tr>
+          <tr><td>11</td><td>操作必有反馈，破坏性操作要确认</td><td><span class="tag pass">满足</span></td><td><span class="tag keep">已修</span></td><td class="c">不适用</td><td>「清空缓存」补二次确认，确认文案带实时条数（「将删除 1,234 条缓存，无法撤销」），条数取自最近一次读取，读不到时不假装知道</td></tr>
+          <tr><td>12</td><td>层级在所有断点存活</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td>设置页有 640px 断点（键列改上下堆叠）；弹窗按 Chrome 规范固定宽度；文档自适应</td></tr>
+          <tr><td>13</td><td>展示名称、状态与关键元信息</td><td><span class="tag pass">满足</span></td><td><span class="tag keep">已修</span></td><td><span class="tag pass">满足</span></td><td>「内置模型状态」「缓存占用」直接给状态；<strong>本轮修掉页脚版本号失真</strong>（写死 v1.0.0 → 现从 manifest 读取）</td></tr>
+          <tr><td>14</td><td>约束优于装饰</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td>无可删元素；扩展自身的译文样式默认「素净」也是同一条原则的落地</td></tr>
+          <tr><td>15</td><td>数据变多不破版</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td>关键文本带省略号与换行约束，表格与代码块可横向滚动，长域名列表不撑破卡片</td></tr>
+          <tr><td>16</td><td>结构由用途推导</td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td><span class="tag pass">满足</span></td><td>布尔用开关、枚举用下拉、比例用滑块、多值用文本域 —— 没有为了视觉整齐而错配控件</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>偏差 1 — 主导区域（第 2 条）</h3>
+    <p>
+      弹窗 3 个统计格、设置页 5 张卡片视觉等权重。保留理由：卡片顺序已经承担了重要性
+      （引擎 → 行为 → 范围 → 缓存 → 快捷键），卡内标题存在 20 → 15 → 13 px 的字号层级。
+      再叠一层「主卡更大」，会让设置页头重脚轻，收益小于代价 ——
+      这里选择<strong>用排序和字号表达层级，而不是用面积</strong>。
+    </p>
+
+    <h3>偏差 2 — 字号未 token 化（第 8 条）</h3>
+    <p>
+      两个产品界面的间距与圆角已全部 token 化，字号没有。12.5px 用于 <code>code</code> 与状态胶囊这类次级文本，
+      与 13px 在正文旁的可读性差异是稳定的；强行归到任一侧都会让某一类文本偏离原本观感。
+      文档层没有这个包袱，所以那里连字号一起收敛到 <code>--fs-1..--fs-8</code> 八档。
+    </p>
+
+    <h3>本轮新发现的 3 处缺陷（已修）</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:5%">#</th><th style="width:32%">问题</th><th style="width:8%">条款</th><th>修法</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td><strong>设置页页脚写死 <code>v1.0.0</code></strong>，而 <code>manifest.json</code> 已是 <code>1.4.0</code></td>
+            <td>13</td>
+            <td>改为运行时 <code>chrome.runtime.getManifest().version</code> 现读；读不到（例如直接以 file:// 打开）则只显示产品名。<strong>根治这类漂移，而不是把 v1.0.0 改成 v1.4.0</strong></td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td><strong>8 处 <code>&lt;label class="row__k"&gt;</code> 没有关联任何控件</strong>（「内置模型状态」「开关」「性能参数」等纯文本标题用了 label 标签）</td>
+            <td>3</td>
+            <td>改为 <code>&lt;span&gt;</code>。CSS 用的是类选择器，改标签不影响 150px 键列的对齐（已渲染复核）。保留 10 处真正带 <code>for=</code> 的 label</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td><strong>设计说明文档自称 <code>v1.3.0</code></strong>（标题、正文、页脚三处），与当前版本不符</td>
+            <td>8 / 13</td>
+            <td>三处统一为 <code>v1.4.0</code>。README 里「v1.3.0 引入某改动」属历史事实，<strong>保留不动</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note warn">
+      <span class="t">为什么上一轮漏掉了这 3 处</span>
+      <p>
+        上一轮是按<strong>法则清单</strong>从上往下核对的，这 3 处都不对应任何一条法则的字面意思，
+        所以逐条打分时全部通过。它们的共同特征是<strong>「跨文件的一致性」</strong> ——
+        页脚与 manifest 之间、label 与控件之间、文档与版本号之间。
+        这类缺陷靠读单一文件找不出来，只能靠<strong>跨文件比对</strong>。
+        本轮把比对方式固化成脚本（见第 8 节），避免下次再靠人眼。
+      </p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s3">
+    <h2><span class="num">03</span>产品视角复核</h2>
+
+    <p>按产品战略团队手册的框架，逐项看两个界面的信息架构是否支撑产品意图。</p>
+
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:20%">审查项</th><th style="width:10%">判定</th><th>依据</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Purpose First<br>一屏一个主目的</td>
+            <td><span class="tag pass">通过</span></td>
+            <td>弹窗回答「这一页翻不翻」，设置页回答「以后都怎么翻」—— 两个问题被拆到两个界面，没有混在一起，符合「多个目标应拆成不同界面」</td>
+          </tr>
+          <tr>
+            <td>主导区域</td>
+            <td><span class="tag fail">偏差</span></td>
+            <td>见第 2 节偏差 1。产品侧接受这个取舍：设置页是「查得到」而非「扫一眼」的界面</td>
+          </tr>
+          <tr>
+            <td>渐进披露</td>
+            <td><span class="tag fail">偏差</span></td>
+            <td><strong>这是产品侧最该改的一项。</strong>设置页 5 张卡片全部展开，DeepL Key、OpenAI Base URL 这些一次性配完就不再看的高级项，与「显示方式」这种高频项处在同一视觉层级。用户每次进设置页都要越过 3 个输入框才能碰到常用项</td>
+          </tr>
+          <tr>
+            <td>实体完整性<br>（名称 / 状态 / 元信息 / 动作）</td>
+            <td><span class="tag keep">已修</span></td>
+            <td>产品实体是「当前这个页面」：弹窗给出页面可译状态、已译条数、识别语言、生效引擎，四项齐全。本轮修掉了页脚版本号失真 —— 元信息之一失准就是这项条款的失败</td>
+          </tr>
+          <tr>
+            <td>密度意图</td>
+            <td><span class="tag pass">通过</span></td>
+            <td>两个界面都是单一紧凑密度，没有同屏混用</td>
+          </tr>
+          <tr>
+            <td>可缩放性<br>（数据变多 / 功能变多）</td>
+            <td><span class="tag warn">有风险</span></td>
+            <td>数据变多已处理（省略号、滚动、上限）。<strong>功能变多没处理</strong>：设置页现在是 5 张平铺卡片，再加两个功能域就会变成 7 张，靠排序表达优先级的手法撑不住</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>产品侧结论</h3>
+    <p>
+      两个界面的<strong>信息内容</strong>是对的（该有的状态都有、标签都能自解释），
+      问题出在<strong>信息架构的可扩展性</strong>：设置页靠「一张卡片一个功能域 + 顺序即优先级」承载，
+      这个结构在 5 个功能域时读得通，在 8 个时失效。
+      建议不是现在重构，而是在<strong>下一次新增功能域时</strong>同步引入分组折叠 —— 否则会欠下架构债。
+    </p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s4">
+    <h2><span class="num">04</span>业务视角：竞品简报与定位</h2>
+
+    <p>
+      决策问题：<strong>把「不改变原页面布局」当作核心差异化，是否站得住？</strong>
+      为此把这一品类的公开信息拉成矩阵。
+    </p>
+
+    <div class="tbl">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:17%">维度</th>
+            <th style="width:13%">本产品</th>
+            <th style="width:14%">沉浸式翻译</th>
+            <th style="width:14%">彩云小译</th>
+            <th style="width:14%">Google 翻译</th>
+            <th style="width:14%">DeepL 扩展</th>
+            <th>有道翻译</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>双语对照</td><td>✅</td><td>✅</td><td>✅</td><td>❌ 原文消失</td><td>⚠️ 部分</td><td>❌</td></tr>
+          <tr><td><strong>布局保真</strong></td><td><strong>✅ 有量化判据</strong></td><td>⚠️ 被评「布局友好」</td><td>❌ 复杂页错位、改背景为纯白</td><td>❌ 不适用</td><td>⚠️ 部分</td><td>❌</td></tr>
+          <tr><td>引擎可选性</td><td>✅ 四类</td><td>✅ 十几种</td><td>❌ 仅自有</td><td>❌ 仅 Google</td><td>❌ 仅 DeepL</td><td>❌ 仅有道</td></tr>
+          <tr><td>自带 Key / 自建网关</td><td>✅ OpenAI 兼容</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>本地离线翻译</td><td>✅ Chrome 内置模型</td><td>未核实</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          <tr><td>隐私姿态</td><td>✅ 不收集任何统计</td><td>⚠️ 取决于所选引擎</td><td>⚠️ 看服务条款</td><td>⚠️ 文本交 Google</td><td>⚠️ 看 DeepL 政策</td><td>⚠️ 称收集行为数据</td></tr>
+          <tr><td>文档与多格式</td><td>❌ 仅网页</td><td>✅ PDF/EPUB/字幕/图片</td><td>⚠️ PDF/DOCX/PPT</td><td>⚠️ 有限</td><td>⚠️ 有限</td><td>⚠️ 有限</td></tr>
+          <tr><td>划词翻译</td><td>❌ 无</td><td>✅ 划词 + 自定义快捷键</td><td>⚠️ 气泡常跑出屏幕</td><td>❌ 仅整页</td><td>⚠️</td><td>⚠️</td></tr>
+          <tr><td>免费模式</td><td>✅ 免费（自备 Key 另计）</td><td>✅ 基础免费 + Pro</td><td>⚠️ 每日额度有限</td><td>✅ 免费</td><td>⚠️ 免费版限制</td><td>⚠️ 免费版有广告</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="c" style="font-size:12.5px">
+      ✅ 完整　⚠️ 部分 / 未核实　❌ 无。数据来源：2026 年三篇第三方横评（可靠性中等，未逐项回归厂商官方页）。
+      标「未核实」的表示公开信息不足，不构成「该产品没有此功能」的结论。
+    </p>
+
+    <h3>定位判断：差异化站得住，但护城河窄</h3>
+
+    <figure>
+      <div class="figbox">
+        <svg viewBox="0 0 680 420" role="img" aria-label="竞品定位图：横轴为布局保真，纵轴为引擎与隐私可控性，本产品位于右上方的差异化空位">
+          <defs>
+            <marker id="ax" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+              <path d="M0,0 L7,3.2 L0,6.4 z" class="f-t3"/>
+            </marker>
+          </defs>
+
+          <!-- 差异化空位 -->
+          <rect x="455" y="70" width="190" height="132" rx="10" fill="none" stroke-dasharray="5 4" class="s-acc" opacity="0.7"/>
+          <text x="458" y="62" font-size="11.5" font-weight="700" class="f-acc">差异化空位（目前无人占据）</text>
+
+          <!-- 轴 -->
+          <line x1="90" y1="370" x2="654" y2="370" class="s-line" stroke-width="1.4" marker-end="url(#ax)"/>
+          <line x1="90" y1="370" x2="90" y2="46" class="s-line" stroke-width="1.4" marker-end="url(#ax)"/>
+          <text x="654" y="392" font-size="11.5" text-anchor="end" class="f-t3">布局保真 →</text>
+          <text x="90" y="38" font-size="11.5" class="f-t3">引擎与隐私可控性 →</text>
+          <text x="96" y="386" font-size="10.5" class="f-t3">低</text>
+          <text x="628" y="386" font-size="10.5" class="f-t3">高</text>
+
+          <!-- 竞品点 -->
+          <circle cx="505" cy="240" r="6" class="f-t2"/>
+          <text x="517" y="244" font-size="12" class="f-t2">沉浸式翻译</text>
+
+          <circle cx="330" cy="268" r="6" class="f-t3"/>
+          <text x="342" y="272" font-size="12" class="f-t3">DeepL 扩展</text>
+
+          <circle cx="248" cy="300" r="6" class="f-t3"/>
+          <text x="260" y="304" font-size="12" class="f-t3">彩云小译</text>
+
+          <circle cx="172" cy="332" r="6" class="f-t3"/>
+          <text x="184" y="336" font-size="12" class="f-t3">Google 翻译</text>
+
+          <circle cx="118" cy="350" r="6" class="f-t3"/>
+          <text x="130" y="354" font-size="12" class="f-t3">有道翻译</text>
+
+          <!-- 本产品 -->
+          <circle cx="575" cy="115" r="9" class="f-ok"/>
+          <circle cx="575" cy="115" r="16" fill="none" class="s-ok" opacity="0.5"/>
+          <text x="597" y="108" font-size="13" font-weight="700" class="f-ok">本产品</text>
+          <text x="597" y="124" font-size="11" class="f-t3">v1.4.0</text>
+        </svg>
+      </div>
+      <figcaption>两轴为<strong>定性判断</strong>，不是量化评分；坐标反映的是公开信息呈现的相对位置，用于说明策略取舍，不用于精确比较。</figcaption>
+    </figure>
+
+    <p><strong>站得住的理由：</strong>「排版会不会被弄乱」是这一品类<strong>最集中、最具体、最容易被用户当场感知</strong>的公开抱怨。</p>
+    <ul>
+      <li>彩云小译：复杂网页排版偶尔错位，且<strong>会把原网页背景色改成纯白</strong>，被评测直接点评为「破坏了原本的阅读排版」</li>
+      <li>Google 翻译：翻译后原文消失，根本没有双语对照</li>
+      <li>DeepL 扩展：仅部分支持双语对照</li>
+    </ul>
+    <p>
+      也就是说，竞品在这一维度上是<strong>有伤而不是无感</strong>。把「不改变原页面布局」从形容词变成三条可数出数字的判据
+      （结构不变 / 宽度不许变小 / 内联宿主高度不许变 / 译文自身不被压扁），
+      既是工程约束，也正好是<strong>可以拿去和竞品做同题实测的对比口径</strong>。
+    </p>
+
+    <p><strong>护城河窄的理由（必须说清楚）：</strong></p>
+    <ol>
+      <li>布局保真是<strong>工程质量，不是专利</strong>。沉浸式翻译已被第三方评为「布局友好、UI 侵入性低」，说明这条赛道上对手不缺能力，只是优先级不同。</li>
+      <li><strong>能被复制就撑不起长期差异化。</strong>真正难复制的是另外两个组合：①「Chrome 内置本地模型 + 可自建网关」构成的隐私闭环；②「扩展不收集任何统计数据」这个可以写进隐私政策的承诺。前者是能力壁垒，后者是信任壁垒 —— 但这两条<strong>用户感知弱</strong>，不会让人当场换工具。</li>
+      <li><strong>缺口恰恰在入场券上。</strong>没有划词翻译、只支持网页，而这两项是竞品普遍具备的基础能力。用户不会因为「布局更稳」去容忍「不能划词」。</li>
+    </ol>
+
+    <h3>行动建议</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:14%">类别</th><th style="width:36%">动作</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>加注</strong><br>继续做深</td>
+            <td>把布局保真做成<strong>可对外验证的对比资产</strong>：同一批真实站点上跑四判据，公开数字</td>
+            <td>这是唯一一个「竞品有伤、我们有余量、且结果可量化」的维度。定性宣称没有说服力，同题实测才有</td>
+          </tr>
+          <tr>
+            <td><strong>加注</strong></td>
+            <td>把「零统计 + 本地模型 + 自建网关」写成一个明确的<strong>场景主张</strong>（涉密文档、内网资料、法务合规环境）</td>
+            <td>能力已具备，缺的是把它翻译成用户能对号入座的使用场景。这是当前最划算的一步，因为<strong>不需要写新代码</strong></td>
+          </tr>
+          <tr>
+            <td><strong>对标</strong><br>该补</td>
+            <td>划词翻译</td>
+            <td>竞品普遍具备。缺它等于把自己排除在「日常穿插查阅」这一最高频场景之外</td>
+          </tr>
+          <tr>
+            <td><strong>对标</strong></td>
+            <td>PDF / 多格式</td>
+            <td>沉浸式翻译靠这一项拉开了明显身位。可作为独立路线图项评估，不必挤进近期版本</td>
+          </tr>
+          <tr>
+            <td><strong>监控</strong></td>
+            <td>沉浸式翻译的布局策略变化；本活动（若引入）是否带来数据收集压力</td>
+            <td>前者会直接侵蚀差异化；后者会侵蚀隐私承诺 —— 两项都是本产品的立身之本</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s5">
+    <h2><span class="num">05</span>用户视角：待验证假设</h2>
+
+    <div class="note bad">
+      <span class="t">本节没有结论，只有假设</span>
+      <p>
+        本轮<strong>没有做任何访谈、问卷、可用性测试或埋点</strong>。因此本节不产出「用户认为……」这类结论，
+        只列出可被证伪的假设与验证方案。每一条都标着「假设（未验证）」。
+        把假设写成结论是产品文档最常见的一种失真，这里不这么做。
+      </p>
+    </div>
+
+    <h3>用户细分（假设，未验证）</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:20%">细分</th><th style="width:26%">特征</th><th style="width:22%">核心需求</th><th>对本产品的相对价值</th></tr></thead>
+        <tbody>
+          <tr><td>技术文档深度读者</td><td>开发者，日均读大量英文文档与 issue</td><td>术语准确、代码块不被破坏、双语可核对</td><td>高 —— 与「跳代码块 + 布局保真」两个特性天然吻合</td></tr>
+          <tr><td>学术文献研读者</td><td>高频读论文与综述，注重上下文语义</td><td>长句质量、公式与表格不被弄乱</td><td>中高 —— 布局保真加分，但 PDF 缺口是硬伤</td></tr>
+          <tr><td>跨境 / 外贸从业者</td><td>反复查海外供应商官网与参数表</td><td>表格类页面可读、速度快</td><td>中 —— 表格场景正是本产品的判据覆盖区</td></tr>
+          <tr><td>隐私敏感 / 涉密环境</td><td>内网资料、法务合规、不能出网</td><td>内容不出本机、不留痕</td><td>高且独特 —— 本地模型 + 零统计是竞品难以对标的组合</td></tr>
+          <tr><td>泛浏览轻量用户</td><td>偶尔看外文页面，追求最省事</td><td>一键可用、不打扰</td><td>低 —— 缺划词会直接流失到竞品</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>最关键的 5 条待验证假设</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:5%">#</th><th style="width:37%">假设（可证伪）</th><th style="width:16%">验证方法</th><th>若被推翻意味着</th></tr></thead>
+        <tbody>
+          <tr><td>H1</td><td>「不改变原页面布局」是用户选择翻译扩展时的<strong>首要或次首要</strong>决策因素</td><td>对比访谈 + 可用性测试，n ≥ 8</td><td>整个差异化主张失去立足点，需要重新找定位</td></tr>
+          <tr><td>H2</td><td>用户<strong>能感知到</strong>「译文独占整行」与「译文被挤成竖条」的差别，并偏好前者</td><td>A/B 可用性测试，让用户在两版渲染结果中选</td><td>布局判据赢了指标但赢不了体感，投入产出比要重估</td></tr>
+          <tr><td>H3</td><td>80% 字号是「明显小一号但仍好读」的最优点</td><td>字号阶梯测试（75 / 80 / 85 / 90%），n ≥ 30</td><td>默认值需回调；这是当前唯一没有用户背书的默认值</td></tr>
+          <tr><td>H4</td><td>默认「素净」样式优于「标注」样式</td><td>首次使用偏好测试，n ≥ 50</td><td>默认值应改为「标注」，或改为按站点类型自动选择</td></tr>
+          <tr><td>H5</td><td>缺少划词翻译会让<strong>泛浏览型用户直接放弃</strong>本产品</td><td>流失访谈 + 竞品切换原因回收</td><td>若不成立，可继续把划词排在 PDF 之后；若成立，应提前其优先级</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>证据强度：必须如实说</h3>
+    <p>
+      上述所有假设的当前证据强度都是<strong>「弱」或「无」</strong>，唯一可引用的是第 4 节那批竞品公开抱怨 ——
+      那是<strong>别人用户对别人产品的抱怨</strong>，只能作为假设的来源，不能当作对本产品的验证。
+      本产品至今没有任何一手用户证据。这是当前最大的信息缺口，且<strong>它比任何 UI 缺陷都更值得优先解决</strong>。
+    </p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s6">
+    <h2><span class="num">06</span>指标框架（隐私约束下）</h2>
+
+    <p>
+      先摆约束：本产品在 README 中明确承诺<strong>不收集任何统计数据</strong>。
+      因此每个指标的第一道关卡不是「有没有用」，而是<strong>「本机能不能算出来、不出网」</strong>。
+      做不到的一律标注「需要隐私权衡」，不默认偷偷埋点。
+    </p>
+
+    <h3>北极星指标</h3>
+    <div class="note ok">
+      <span class="t">本页译文覆盖率 = 本页已译单元数 ÷ 本页候选翻译单元数</span>
+      <p>
+        选它的理由：这是<strong>唯一一个直接衡量「用户有没有真的拿到对照阅读价值」</strong>的指标 ——
+        装上了但没翻出东西，覆盖率就是 0。它比「安装量」和「日均使用次数」都更贴近产品核心价值。
+      </p>
+      <p>
+        关键优势：<strong>两个字段运行时已经在报</strong>（<code>translated</code> 与 <code>units</code>），
+        不需要新增任何采集代码，也不需要上传任何东西 —— <strong>零隐私代价</strong>。
+      </p>
+    </div>
+
+    <h3>AARRR 骨架与可得性</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:10%">层级</th><th style="width:32%">指标</th><th style="width:18%">可得性</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>获取</td><td>商店安装量、曝光转化</td><td class="nonzero">本轮无法获得</td><td>需商店后台数据，与扩展运行时无关</td></tr>
+          <tr><td>激活</td><td>首装后首次成功翻译的到达率与耗时</td><td class="zero">本机可得</td><td>可从「首个译文落地时刻 − 脚本注入时刻」算出</td></tr>
+          <tr><td>留存</td><td>回访用户 / 周活</td><td class="nonzero">需隐私权衡</td><td>替代方案：本机累计计数 + 用户主动导出，绝不自动上报</td></tr>
+          <tr><td>收入</td><td>—</td><td class="c">不适用</td><td>当前无商业化；自备 Key 的成本由用户自有账户承担</td></tr>
+          <tr><td>推荐</td><td>—</td><td class="nonzero">本轮无法获得</td><td>无分享链路，也没有可归因渠道</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>守门指标：防止「北极星涨了但产品变差了」</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:5%">#</th><th style="width:26%">守门指标</th><th style="width:20%">阈值 / 报警条件</th><th>为什么需要它</th></tr></thead>
+        <tbody>
+          <tr><td>G1</td><td>布局保真四判据（结构不变 / 宽度不许变小 / 内联宿主高度不许变 / 译文不被压扁）</td><td>任一非 0 即视为回归</td><td>覆盖率可以靠「更激进地插入译文」刷高，代价正是弄乱页面 —— 这条直接对冲</td></tr>
+          <tr><td>G2</td><td>2500 块页面的首屏采集耗时</td><td>超过 25 ms（基线 20.0 ms，留 25% 余量）</td><td>覆盖率可以靠「多翻一点」刷高，代价是页面卡顿</td></tr>
+          <tr><td>G3</td><td>还原后的残留检查（<code>restoreClean</code>）</td><td>必须为 <code>true</code></td><td>关闭扩展后页面必须回到原样，这是「不改动用户页面」承诺的底线</td></tr>
+          <tr><td>G4</td><td>出网域名白名单</td><td>出现白名单外的域名即 P0</td><td>覆盖率可以靠「偷偷多发几个请求」刷高。<strong>白名单必须严格等于「所选引擎域名 + 自建网关」，这一条比任何指标都重要</strong></td></tr>
+          <tr><td>G5</td><td>接口失败率（429 / 5xx）</td><td>超过 10% 自动降并发</td><td>失败会让覆盖率虚低，同时把用户推向被限流的深渊</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>如果只允许先上 3 个（全部零隐私代价）</h3>
+    <ol>
+      <li><strong>本页译文覆盖率</strong> —— 数据已有（<code>translated</code> / <code>units</code>），直接算。</li>
+      <li><strong>首个译文到达耗时</strong> —— 需新增一个本机时间戳差值，改动量极小，但它决定了用户对「快不快」的第一印象。</li>
+      <li><strong>布局保真四判据</strong> —— 夹具版已经跑通（<code>tools/bench-layout.sh</code>），下一步是<strong>拿到真实站点上抽样巡检</strong>，把「合成页全绿」变成「真实世界也全绿」。</li>
+    </ol>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s7">
+    <h2><span class="num">07</span>缺陷清单与优先级</h2>
+
+    <h3>本轮新发现并已修复（3 项）</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:5%">#</th><th style="width:30%">缺陷</th><th style="width:10%">类别</th><th style="width:10%">严重度</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>设置页页脚版本号写死 <code>v1.0.0</code>，与 manifest 的 <code>1.4.0</code> 不符</td><td>状态失真</td><td><span class="tag fail">中</span></td><td><span class="tag pass">已修（改为现读 manifest）</span></td></tr>
+          <tr><td>2</td><td>8 处 <code>&lt;label&gt;</code> 未关联任何控件</td><td>语义 / 无障碍</td><td><span class="tag keep">低</span></td><td><span class="tag pass">已修（改 span，保留带 for 的 10 处）</span></td></tr>
+          <tr><td>3</td><td>设计说明文档三处自称 <code>v1.3.0</code></td><td>状态失真</td><td><span class="tag keep">低</span></td><td><span class="tag pass">已修</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>未修待办（按产品战略团队手册的权重框架排序）</h3>
+    <p class="c" style="font-size:12.5px">权重：用户影响 30% / 业务价值 25% / 战略对齐 20% / 工程成本 15% / 依赖风险 10%。</p>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:5%">ID</th><th style="width:30%">待办</th><th style="width:10%">类别</th><th style="width:12%">加权判断</th><th>理由</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>P0</td>
+            <td><strong>获取一手用户证据</strong>（至少验证 H1、H2）</td>
+            <td>产品 / 用户</td>
+            <td>最高</td>
+            <td>当前所有产品判断都建立在「竞品的用户抱怨」和「我们的工程推测」之上。不补这一步，后面所有优先级排序都是在猜</td>
+          </tr>
+          <tr>
+            <td>P1</td>
+            <td><strong>把布局保真做成对外可验证的对比资产</strong>（真实站点同题实测）</td>
+            <td>业务</td>
+            <td>高</td>
+            <td>唯一一个「竞品有伤、我们有余量、结果可量化」的维度，且夹具与判据均已就绪，增量成本低</td>
+          </tr>
+          <tr>
+            <td>P2</td>
+            <td><strong>划词翻译</strong></td>
+            <td>功能缺口</td>
+            <td>高</td>
+            <td>品类入场券。缺它会让泛浏览型用户直接流失，而这类用户占比通常最大</td>
+          </tr>
+          <tr>
+            <td>P3</td>
+            <td><strong>设置页引入分组折叠</strong>（高级项收起）</td>
+            <td>UI / 架构债</td>
+            <td>中</td>
+            <td>对应第 2 节偏差 3 与第 3 节的「功能变多没处理」。<strong>不必现在做，但下次新增功能域时必须同步做</strong>，否则 5 张卡片变 7 张后靠排序表达优先级的手法会失效</td>
+          </tr>
+          <tr>
+            <td>P4</td>
+            <td>PDF / 多格式支持</td>
+            <td>功能缺口</td>
+            <td>中低</td>
+            <td>沉浸式翻译靠这一项拉开身位，但工程量显著，且与本产品「不改动原排版」的主张关联较弱</td>
+          </tr>
+          <tr>
+            <td>P5</td>
+            <td>两个产品界面的字号 token 化</td>
+            <td>UI 一致性</td>
+            <td>低</td>
+            <td>见第 2 节偏差 2。收益是检查脚本能少一类例外，代价是可能需要重调次级文本观感</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════ -->
+  <section id="s8">
+    <h2><span class="num">08</span>验证与复现</h2>
+
+    <h3>界面与文档的刻度检查</h3>
+    <pre>python tools/check-design-tokens.py     # 三项全为 0 才算通过</pre>
+    <p>
+      这个脚本自己也验过：喂进 <code>padding: 13px</code> 会报红、喂进 <code>var(--sp-3)</code> 会放行 ——
+      否则判据可能只是在测空气。
+    </p>
+
+    <h3>跨文件一致性检查（本轮新增该类缺陷的守门方式）</h3>
+    <div class="tbl">
+      <table>
+        <thead><tr><th style="width:30%">检查项</th><th style="width:20%">方法</th><th>当前结果</th></tr></thead>
+        <tbody>
+          <tr><td>界面 / 文档里是否还有写死的版本号</td><td>全仓正则扫描 <code>v1.x.x</code></td><td class="zero">0 处 ✔</td></tr>
+          <tr><td>存在未关联控件的 <code>&lt;label&gt;</code></td><td>比对 <code>&lt;label&gt;</code> 与 <code>for=</code> / 嵌套控件</td><td class="zero">0 处（保留 10 处合法 label）✔</td></tr>
+          <tr><td>manifest 与 package 的版本是否一致</td><td>读两个 JSON 比对</td><td class="zero">1.4.0 = 1.4.0 ✔</td></tr>
+          <tr><td>清单引用的静态资源是否存在</td><td>逐个 <code>os.path.exists</code></td><td class="zero">全部存在 ✔</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>界面渲染复核</h3>
+    <p>
+      改动后用真实 Chrome 无头模式重新渲染了弹窗与设置页，确认
+      <code>&lt;label&gt; → &lt;span&gt;</code> 没有影响 150px 键列的对齐、页脚版本号在拿不到扩展运行时（file:// 直接打开）时能优雅退化为只显示产品名。
+    </p>
+
+    <h3>工程侧（沿用，未改动）</h3>
+    <pre>npm test                  # 227 项断言（135 + 46 + 18 + 28）
+npm run bench:layout      # 30 类宿主夹具 × 4 个布局判据
+npm run bench             # 2500 块合成页性能基准</pre>
+    <div class="note ok">
+      <span class="t">结果</span>
+      <p>
+        227 项断言全部通过；布局保真判据 <strong>S1–S4 在默认「智能分流」下全为 0</strong>，
+        而两个已知会崩的实现（旧默认 <code>inside</code>、强制 <code>sibling</code>）在不同判据上报红 ——
+        说明判据确实有牙齿，不是恒真断言。
+      </p>
+    </div>
+  </section>
+
+  <hr class="soft">
+
+  <footer class="doc">
+    双语助手 v1.4.0 · 产品与界面复核报告 ·
+    复核依据：<code>ardot-ui-design/guidelines-web-app.md</code>（16 条法则）、
+    产品战略团队手册（§3 竞品简报 / §4 用户研究综合 / §5 指标评审）、
+    仓库自带 227 项断言与两套真实浏览器基准。<br>
+    界面与文档的样式刻度与 <code>docs/布局保全设计说明.html</code> 共用同一套 token（<code>--sp-*</code> / <code>--r-*</code> / <code>--fs-*</code>）。
+  </footer>
+
+</div>
+</body>
+</html>

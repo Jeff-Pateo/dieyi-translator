@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>布局保全设计说明 · 双语助手 v1.6.0</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #f0f2f5;
+    --line: #dfe3e9;
+    --line-strong: #c6ccd6;
+    --text: #1c2024;
+    --text-2: #4d5560;
+    --text-3: #7b848f;
+    --accent: #2d7dd2;
+    --accent-ink: #17558f;
+    --accent-soft: #eaf2fb;
+    --ok: #1f7a4d;
+    --ok-soft: #e8f5ee;
+    --bad: #b3261e;
+    --bad-soft: #fdeceb;
+    --warn: #8a5a00;
+    --warn-soft: #fdf4e3;
+    --code-bg: #f2f4f7;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+    /* ── 刻度 ────────────────────────────────────────────────
+       间距 / 圆角 / 字号一律取自下面的 token，样式里不写裸像素值。
+       前段与设置页、弹窗共用同一套刻度，文档因需要更大留白而延伸
+       出 --sp-7..--sp-9 三档。 */
+    --sp-0: 2px;
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 24px;
+    --sp-6: 32px;
+    --sp-7: 48px;
+    --sp-8: 64px;
+    --sp-9: 96px;
+
+    --r-xs: 4px;
+    --r-sm: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+    --r-full: 999px;
+
+    --fs-1: 12px;   /* 角标、代码、元信息 */
+    --fs-2: 13px;   /* 表格、注释、次要信息 */
+    --fs-3: 14px;   /* 目录链接、四级标题 */
+    --fs-4: 15px;   /* 正文 */
+    --fs-5: 16px;   /* 导语、三级标题 */
+    --fs-6: 18px;   /* 卡片数字（小号）*/
+    --fs-7: 24px;   /* 二级标题、卡片数字 */
+    --fs-8: 34px;   /* 文档主标题 */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15181c;
+      --surface: #1c2025;
+      --surface-2: #23282e;
+      --line: #2f353c;
+      --line-strong: #414952;
+      --text: #e8ebee;
+      --text-2: #b3bac3;
+      --text-3: #868f99;
+      --accent: #63a9f0;
+      --accent-ink: #a8cdf5;
+      --accent-soft: #1d2c3d;
+      --ok: #5fce9a;
+      --ok-soft: #16301f;
+      --bad: #f2857c;
+      --bad-soft: #331d1b;
+      --warn: #e0b164;
+      --warn-soft: #322718;
+      --code-bg: #23282e;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.75 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+          "Hiragino Sans GB", "Microsoft YaHei", "Source Han Sans SC", sans-serif;
+    font-feature-settings: "tnum" 1;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 var(--sp-5) var(--sp-9); }
+
+  /* ── 页头 ───────────────────────────────────────────── */
+  header.doc {
+    padding: var(--sp-7) 0 var(--sp-6);
+    border-bottom: 1px solid var(--line);
+    margin-bottom: var(--sp-2);
+  }
+  .kicker {
+    font: 600 var(--fs-1)/1 var(--mono);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: var(--sp-4);
+  }
+  header.doc h1 {
+    font-size: var(--fs-8); line-height: 1.25; margin: 0 0 var(--sp-3);
+    letter-spacing: -0.01em; font-weight: 700;
+  }
+  header.doc .sub {
+    font-size: var(--fs-5); color: var(--text-2); margin: 0 0 var(--sp-5); max-width: 780px;
+  }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3);
+  }
+  .meta span {
+    font: 500 var(--fs-2)/1 var(--mono);
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    color: var(--text-2);
+    padding: var(--sp-2) var(--sp-3); border-radius: var(--r-full);
+  }
+  .meta span b { color: var(--text); font-weight: 600; }
+
+  /* ── 目录 ───────────────────────────────────────────── */
+  nav.toc {
+    margin: var(--sp-6) 0 var(--sp-7);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: var(--sp-4) var(--sp-5);
+  }
+  nav.toc h2 {
+    font-size: var(--fs-1); letter-spacing: .12em; text-transform: uppercase;
+    color: var(--text-3); margin: 0 0 var(--sp-3); font-weight: 600;
+  }
+  nav.toc ol { margin: 0; padding: 0; list-style: none;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--sp-1) var(--sp-5); }
+  nav.toc a {
+    color: var(--text-2); text-decoration: none; font-size: var(--fs-3);
+    display: block; padding: var(--sp-1) 0; border-bottom: 1px solid transparent;
+  }
+  nav.toc a:hover { color: var(--accent); }
+  nav.toc i { color: var(--text-3); font-style: normal; font: 500 var(--fs-1)/1 var(--mono); margin-right: var(--sp-2); }
+
+  /* ── 章节 ───────────────────────────────────────────── */
+  section { margin: 0 0 var(--sp-2); scroll-margin-top: var(--sp-5); }
+  section > h2 {
+    font-size: var(--fs-7); margin: var(--sp-7) 0 var(--sp-2); font-weight: 700; letter-spacing: -0.005em;
+    padding-top: var(--sp-5); border-top: 1px solid var(--line);
+  }
+  section > h2 .num {
+    font: 600 var(--fs-2)/1 var(--mono); color: var(--accent);
+    display: block; margin-bottom: var(--sp-3); letter-spacing: .08em;
+  }
+  h3 { font-size: var(--fs-5); margin: var(--sp-6) 0 var(--sp-3); font-weight: 650; }
+  h4 { font-size: var(--fs-3); margin: var(--sp-5) 0 var(--sp-2); font-weight: 650; color: var(--text-2); }
+  p { margin: var(--sp-3) 0; color: var(--text-2); }
+  p strong, li strong { color: var(--text); font-weight: 650; }
+  ul, ol { margin: var(--sp-3) 0; padding-left: var(--sp-5); color: var(--text-2); }
+  li { margin: var(--sp-1) 0; }
+  a { color: var(--accent); }
+
+  code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--code-bg); border: 1px solid var(--line);
+    padding: var(--sp-0) var(--sp-1); border-radius: var(--r-xs); color: var(--text);
+    white-space: nowrap;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: var(--r-md);
+    padding: var(--sp-4); overflow-x: auto; margin: var(--sp-4) 0;
+    font-family: var(--mono); font-size: var(--fs-2); line-height: 1.7; color: var(--text);
+  }
+  pre code { background: none; border: 0; padding: 0; font-size: inherit; white-space: pre; }
+  pre .c { color: var(--text-3); }
+
+  /* ── 表格 ───────────────────────────────────────────── */
+  .tbl { overflow-x: auto; margin: var(--sp-4) 0; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: var(--fs-2); }
+  th, td { text-align: left; padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th {
+    background: var(--surface-2); font-weight: 650; font-size: var(--fs-2);
+    color: var(--text); white-space: nowrap; border-bottom: 1px solid var(--line-strong);
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td code, th code { white-space: nowrap; }
+  .num-cell { text-align: right; font-family: var(--mono); font-size: var(--fs-2); white-space: nowrap; }
+  .zero { color: var(--ok); font-weight: 700; }
+  .nonzero { color: var(--bad); font-weight: 700; }
+
+  .tag {
+    display: inline-block; font: 600 var(--fs-1)/1 var(--mono); padding: var(--sp-1) var(--sp-2);
+    border-radius: var(--r-sm); border: 1px solid; white-space: nowrap;
+  }
+  .tag.pass { color: var(--ok); background: var(--ok-soft); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+  .tag.fail { color: var(--bad); background: var(--bad-soft); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+  .tag.keep { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+  .tag.warn { color: var(--warn); background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+
+  /* ── 卡片 / 提示 ────────────────────────────────────── */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--sp-4); margin: var(--sp-4) 0; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg);
+    padding: var(--sp-4);
+  }
+  .card .k { font: 600 var(--fs-7)/1.1 var(--mono); color: var(--accent); letter-spacing: -0.02em; }
+  .card .k.small { font-size: var(--fs-6); }
+  .card .l { font-size: var(--fs-2); color: var(--text-3); margin-top: var(--sp-2); line-height: 1.5; }
+
+  .note {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 var(--r-md) var(--r-md) 0; padding: var(--sp-3) var(--sp-4); margin: var(--sp-4) 0; font-size: var(--fs-2);
+  }
+  .note.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .note.bad { border-left-color: var(--bad); background: var(--bad-soft); }
+  .note.ok { border-left-color: var(--ok); background: var(--ok-soft); }
+  .note .t { font-weight: 650; color: var(--text); display: block; margin-bottom: var(--sp-1); }
+  .note p { margin: var(--sp-1) 0; color: var(--text-2); }
+  .note p:last-child { margin-bottom: 0; }
+
+  figure { margin: var(--sp-5) 0; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption { font-size: var(--fs-2); color: var(--text-3); margin-top: var(--sp-2); text-align: center; }
+  .figbox { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+
+  /* ── SVG 配色 ───────────────────────────────────────────
+     SVG 的 presentation attribute（fill="…" / stroke="…"）里不能写 var()，
+     浏览器会当作非法值忽略并回退成黑色。因此配色一律走样式表类。
+     样式表的优先级高于 presentation attribute，可以安全覆盖。       */
+  figure svg { color: var(--text); }
+  .f-cur    { fill: currentColor; }
+  .f-none   { fill: none; }
+  .f-surf   { fill: var(--surface); }
+  .f-surf2  { fill: var(--surface-2); }
+  .f-acc    { fill: var(--accent); }
+  .f-accs   { fill: var(--accent-soft); }
+  .f-ok     { fill: var(--ok); }
+  .f-oks    { fill: var(--ok-soft); }
+  .f-bad    { fill: var(--bad); }
+  .f-bads   { fill: var(--bad-soft); }
+  .f-warn   { fill: var(--warn); }
+  .f-warns  { fill: var(--warn-soft); }
+  .f-t3     { fill: var(--text-3); }
+  .f-t2     { fill: var(--text-2); }
+  .s-line   { stroke: var(--line-strong); }
+  .s-acc    { stroke: var(--accent); }
+  .s-ok     { stroke: var(--ok); }
+  .s-bad    { stroke: var(--bad); }
+  .s-warn   { stroke: var(--warn); }
+  .s-cur    { stroke: currentColor; }
+
+  hr.soft { border: 0; border-top: 1px dashed var(--line-strong); margin: var(--sp-6) 0; }
+
+  footer.doc {
+    margin-top: var(--sp-8); padding-top: var(--sp-5); border-top: 1px solid var(--line);
+    font-size: var(--fs-2); color: var(--text-3);
+  }
+  footer.doc code { font-size: var(--fs-1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="doc">
+  <div class="kicker">Product Design Spec · Layout Preservation</div>
+  <h1>布局保全设计说明</h1>
+  <p class="sub">
+    开启双语之后页面为什么不会「变形」——形变机制归因、插入点决策树、译文视觉规范、
+    以及五条可执行、可复现的验收判据。本文是 v1.6.0 渲染层与检测层的产品级设计依据。
+  </p>
+  <div class="meta">
+    <span>版本 <b>1.6.0</b></span>
+    <span>日期 <b>2026-09-27</b></span>
+    <span>范围 <b>content/renderer · detector · toggle · guard · content.css · shared/protect · options</b></span>
+    <span>测试 <b>610 项断言 + 1 份等价性证明</b></span>
+    <span>基准 <b>39 类宿主 · 210 元素 · 控件预算</b></span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s0"><i>00</i>一页速览</a></li>
+    <li><a href="#s1"><i>01</i>问题定义：把「不变形」变成可验证的判据</a></li>
+    <li><a href="#s2"><i>02</i>形变机制归因（五条）</a></li>
+    <li><a href="#s3"><i>03</i>插入点决策树</a></li>
+    <li><a href="#s4"><i>04</i>译文视觉规范（UI）</a></li>
+    <li><a href="#s5"><i>05</i>判定闸门（业务）：噪声、语言口径、不可译片段</a></li>
+    <li><a href="#s6"><i>06</i>验证方法与实测对照</a></li>
+    <li><a href="#s7"><i>07</i>性能账：冷启动与稳定态分离</a></li>
+    <li><a href="#s8"><i>08</i>取舍清单与已知边界</a></li>
+    <li><a href="#s9"><i>09</i>交付清单与复现</a></li>
+  </ol>
+</nav>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s0">
+  <h2><span class="num">SECTION 00</span>一页速览</h2>
+
+  <div class="cards">
+    <div class="card"><div class="k">0</div><div class="l">宽度被挤压的元素<br>（旧默认 <code>inside</code>：0，但换个场景就崩）</div></div>
+    <div class="card"><div class="k">0</div><div class="l">内联宿主高度变化<br>（旧默认：<b style="color:var(--bad)">9</b> 处）</div></div>
+    <div class="card"><div class="k">0</div><div class="l">被压扁的译文块<br>（旧默认：<b style="color:var(--bad)">3</b>；<code>sibling</code>：<b style="color:var(--bad)">18</b>）</div></div>
+    <div class="card"><div class="k">0</div><div class="l">落在裁切容器里的译文<br>（<b>修前 <span style="color:var(--bad)">6</span></b> —— 那个分支此前一次都没生效过）</div></div>
+    <div class="card"><div class="k small">3.0 ms</div><div class="l">读样式的一次性成本<br>稳定态边际 <b>0 ms</b>（冷温差两次都为 3.0）</div></div>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th style="width:28%">问题</th><th style="width:34%">结论</th><th>落地位置</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>页面为什么会变形</td>
+        <td>五条机制，全部源于同一件事：<strong>译文被当成页面结构的一部分</strong>去参与布局</td>
+        <td>§2 归因表</td>
+      </tr>
+      <tr>
+        <td>怎么才能不变形</td>
+        <td>插入点不再全局一条规则，改为<strong>按宿主的 computed <code>display</code> 分流</strong>（6 分支，含裁切容器）</td>
+        <td>§3 决策树 · <code>renderer.js</code> <code>placementFor()</code></td>
+      </tr>
+      <tr>
+        <td>字体再小一点</td>
+        <td>默认比例 <code>0.95 → 0.85 → 0.80</code>；下限放宽到 <code>0.60</code>；视觉装饰默认关掉</td>
+        <td>§4 · <code>constants.js</code> · <code>options</code></td>
+      </tr>
+      <tr>
+        <td>有些内容根本不该翻</td>
+        <td>HTML 源码 / JSON-LD 走<strong>噪声闸门</strong>直接拦下（业务判断，不是技术限制）</td>
+        <td>§5 · <code>detector.js</code></td>
+      </tr>
+      <tr>
+        <td>翻了却看不见 / 搅乱站点的「展开全文」</td>
+        <td>译文不再进入被裁切的子树：<strong>取最外层裁切容器，把译文挂到它之后</strong>；零高度折叠区干脆不翻</td>
+        <td>§3.6 · §6.3 · <code>renderer.js</code> <code>clipInfo()</code></td>
+      </tr>
+      <tr>
+        <td>译文里的 URL / 代码被引擎改坏</td>
+        <td>用私用区占位符把不可译片段<strong>摘出原文</strong>，引擎返回后再还原；数量对不上就不进缓存</td>
+        <td>§5.6 · <code>shared/protect.js</code></td>
+      </tr>
+      <tr>
+        <td>只支持中译？</td>
+        <td>语言表下沉为单一数据源（41 种），源/目标任意组合；简繁按<strong>严格口径</strong>算不同语言</td>
+        <td>§5.5 · <code>shared/constants.js</code></td>
+      </tr>
+      <tr>
+        <td>「不变形」怎么证明</td>
+        <td>五条硬判据 + 39 类宿主夹具 + 210 元素实测；并且<strong>拿两个已知会崩的实现跑过，确认报红</strong></td>
+        <td>§6 · <code>tools/bench-layout.html</code></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s1">
+  <h2><span class="num">SECTION 01</span>问题定义：把「不变形」变成可验证的判据</h2>
+
+  <h3>1.1 为什么形容词式的承诺不可接受</h3>
+  <p>
+    原始需求是「不能改变原页面布局」。这句话如果只写在文档里、不落成可执行的检查，
+    它就等价于没有约束 —— 因为<strong>任何一次改动都可以自称「没动布局」</strong>。
+    上一轮的做法就是把决策从「看起来差不多」换成四条可量化的判据；
+    v1.6.0 又补了第五条 S5，专治「翻了却看不见」这一类<strong>不改变任何几何量</strong>的失败。
+  </p>
+
+  <div class="tbl">
+    <table>
+      <thead>
+        <tr><th style="width:52px">编号</th><th style="width:22%">判据</th><th style="width:34%">量化方式</th><th>它抓的是什么</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>S1</b></td>
+          <td>结构不变</td>
+          <td>比对 <code>tagName</code> + 父子链 + <code>previousElementSibling</code> 的 <code>tagName</code></td>
+          <td>父子关系、容器子项数、<code>:nth-child</code>、相邻兄弟选择器是否被破坏</td>
+        </tr>
+        <tr>
+          <td><b>S2</b></td>
+          <td>非译文元素宽度不许变小</td>
+          <td><code>getBoundingClientRect().width</code> 逐元素前后比对</td>
+          <td>「被挤」这件事本身 —— 标签行里原有标签被平分掉宽度，就是这条报红</td>
+        </tr>
+        <tr>
+          <td><b>S3</b></td>
+          <td>内联宿主高度不许变</td>
+          <td>仅统计 <code>display</code> 属于 <code>inline</code> 系列的元素</td>
+          <td>行盒被打断 —— pill / 标签被块级译文撑成两截、定高宿主被撑破</td>
+        </tr>
+        <tr>
+          <td><b>S4</b></td>
+          <td>译文自身不被压扁</td>
+          <td>译文宽度 ÷ 宿主宽度 &lt; <b>60%</b> 即报红</td>
+          <td>译文被当作弹性项平分宽度后，在窄列里拉成一根竖条</td>
+        </tr>
+        <tr>
+          <td><b>S5</b></td>
+          <td>译文不落进裁切容器</td>
+          <td>祖先链（上溯 6 层）中是否存在 <code>overflow:hidden|clip</code> <b>且</b>（有效的 <code>-webkit-line-clamp</code> <b>或</b> <code>max-height &gt; 0</code>）；零高度折叠区单独统计</td>
+          <td>
+            <strong>「翻了但看不见」</strong> —— 站点的 <code>line-clamp</code> / <code>max-height</code> 容器会把插在里面的译文裁掉；
+            以及「翻了但搅乱<strong>站点自己的</strong>展开全文」<br>
+            <span style="color:var(--text-3)">这一条与 S1–S4 有一个本质区别：它不靠几何量报红 —— 译文被裁掉之后，页面所有元素的宽高<strong>都不变</strong>，前四条判据全绿。所以必须单独设一条。</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>1.2 明确豁免的两项（如实报告，不混进判据）</h3>
+  <p>
+    「原文下方双语」这个产品形态决定了有两类变化是<strong>设计本身要求的</strong>，
+    不能用它去污染判据，但也不能藏着不说，因此单独上报：
+  </p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:22%">指标</th><th style="width:34%">含义</th><th>为什么豁免</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>hAll</code></td>
+          <td>元素自身的绝对高度变化，含「因为下方多了一段文字而变高」</td>
+          <td>文档整体下移、承载译文的段落变高 —— 下方双语无法避免</td>
+        </tr>
+        <tr>
+          <td><code>hForeign</code></td>
+          <td>高度变化被归因到「子元素承载了译文」的祖先</td>
+          <td>由 <code>plan.own</code> 反向传播识别：高度变化的<strong>责任方</strong>是那个真正装了译文的元素，不是它的祖先</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="t">关键区分</span>
+    <p>
+      <strong>S3 只数非译文的内联元素</strong>。承载译文的元素自己变高是允许的（<code>hForeign</code>），
+      但<strong>旁边那些没被翻译的内联元素</strong>高度一变，就说明行盒真的被破坏了。二者必须分开统计，
+      否则「允许的变化」会把「真正的破坏」淹没掉 —— 这正是第一版判据没有牙齿的原因。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s2">
+  <h2><span class="num">SECTION 02</span>形变机制归因（五条）</h2>
+
+  <p>
+    截图里的「形变」不是一个 bug，是<strong>五条独立机制叠出来的同一类结果</strong>。
+    下面每一条都给出机制解释与可复现的量化证据（数据来自 <code>tools/bench-layout.html</code>）。
+  </p>
+
+  <div class="tbl">
+    <table>
+      <thead>
+        <tr><th style="width:34px">#</th><th style="width:19%">机制</th><th style="width:29%">为什么会这样</th><th>量化证据</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>①</b></td>
+          <td>译文块被塞进<strong>横向弹性容器</strong></td>
+          <td>容器是 <code>display:flex</code> + 行方向，追加一个子元素 = 新增一个弹性项。容器宽度固定时，浏览器只能<strong>把所有弹性项的宽度重新平分</strong>，原本的标签被分掉宽度，译文自己也被压成一根竖条</td>
+          <td><code>chips</code> 夹具（<code>flex / nowrap / width:420px</code>）下，<code>inside</code> 模式的译文最窄只剩 <b style="color:var(--bad)">40 px</b>，判据 S4 报 3 处挤扁</td>
+        </tr>
+        <tr>
+          <td><b>②</b></td>
+          <td><code>display:block</code> 强规则落在<strong>内联级宿主</strong>上</td>
+          <td>宿主是 <code>inline-block</code> / <code>inline-flex</code> 这类内联级元素时，它的内部仍然是一个行盒。塞进块级译文会<strong>打断这个行盒</strong>，宿主被拆成上下两截、高度翻倍</td>
+          <td><code>pills</code> 夹具下 <code>inside</code> 模式判据 S3 报 <b style="color:var(--bad)">9</b> 处内联宿主高度变化</td>
+        </tr>
+        <tr>
+          <td><b>③</b></td>
+          <td>定高宿主<strong>内容溢出被撑破</strong></td>
+          <td>标签式 UI 常给 pill 设 <code>height</code> 或 <code>line-height</code>，一旦内部多出一块块级内容，内容就溢出盒子边界，视觉上是「被撑开 / 露出背景」</td>
+          <td>同 ② 的 9 处 —— 溢出与高度变化是同一根因的两个观测面</td>
+        </tr>
+        <tr>
+          <td><b>④</b></td>
+          <td>HTML 源码 / JSON-LD 被当成正文翻译</td>
+          <td>有的页面把整段 HTML 源码或结构化数据渲染在 <code>&lt;pre&gt;</code> / 隐藏容器里。这些文本<strong>译文毫无意义</strong>，而且体积极大 —— 在窄列布局里会被拉成一根很长的竖条，看起来就像整页变形</td>
+          <td>加闸门前后 <code>markup</code> / <code>jsonld</code> 两类夹具的译文数从「有」变为 <b>0</b>（<code>transInMarkup: 0</code>、<code>transInJsonld: 0</code>）</td>
+        </tr>
+        <tr>
+          <td><b>⑤</b></td>
+          <td>译文自身的<strong>装饰</strong>就是视觉改动</td>
+          <td><code>::before</code> 的「译」标记、左侧色条、内边距 —— 单看一处是小事，但它在整页每一段上<strong>重复几百次</strong>，累积起来已经构成对页面外观的实质修改</td>
+          <td>默认样式由「标注」改为<strong>素净</strong>：无边框、无标记、无内边距，只保留字号与透明度差异</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <div class="figbox">
+      <svg class="f-cur" viewBox="0 0 680 300" role="img" aria-label="横向弹性容器：修复前译文成为新的弹性项并被压成竖条，修复后译文独占整行">
+        <defs>
+          <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+            <path d="M0,0 L7,3.2 L0,6.4 z" class="f-cur"/>
+          </marker>
+        </defs>
+
+        <!-- 左：修复前 -->
+        <text x="0" y="16" font-size="12.5" font-weight="700">修复前 — 追加进横向弹性容器</text>
+        <rect x="0" y="30" width="300" height="86" rx="8" class="f-none s-bad" stroke-width="1.4" stroke-dasharray="4 3"/>
+        <text x="8" y="46" font-size="10.5" class="f-t3" font-family="monospace">display:flex; flex-wrap:nowrap; width:420px</text>
+        <rect x="12" y="56" width="76" height="30" rx="6" class="f-surf2 s-line"/>
+        <text x="50" y="75" font-size="11.5" text-anchor="middle">标签 A</text>
+        <rect x="94" y="56" width="76" height="30" rx="6" class="f-surf2 s-line"/>
+        <text x="132" y="75" font-size="11.5" text-anchor="middle">标签 B</text>
+        <rect x="176" y="56" width="76" height="30" rx="6" class="f-surf2 s-line"/>
+        <text x="214" y="75" font-size="11.5" text-anchor="middle">标签 C</text>
+        <rect x="258" y="52" width="30" height="66" rx="5" class="f-bads s-bad" stroke-width="1.4"/>
+        <text x="273" y="70" font-size="10" class="f-bad" text-anchor="middle" font-family="monospace">40</text>
+        <text x="273" y="84" font-size="10" class="f-bad" text-anchor="middle" font-family="monospace">px</text>
+        <text x="273" y="100" font-size="9.5" class="f-bad" text-anchor="middle">译文</text>
+        <text x="12" y="132" font-size="11.5" class="f-bad">→ 原有弹性项被平分宽度，译文被拉成竖条（S4 报红）</text>
+
+        <!-- 右：修复后 -->
+        <text x="360" y="16" font-size="12.5" font-weight="700">修复后 — 插到容器之后</text>
+        <rect x="360" y="30" width="300" height="56" rx="8" class="f-none s-ok" stroke-width="1.4"/>
+        <text x="368" y="46" font-size="10.5" class="f-t3" font-family="monospace">原有子项一个都没动</text>
+        <rect x="372" y="56" width="88" height="26" rx="6" class="f-surf2 s-line"/>
+        <text x="416" y="73" font-size="11.5" text-anchor="middle">标签 A</text>
+        <rect x="470" y="56" width="88" height="26" rx="6" class="f-surf2 s-line"/>
+        <text x="514" y="73" font-size="11.5" text-anchor="middle">标签 B</text>
+        <rect x="568" y="56" width="88" height="26" rx="6" class="f-surf2 s-line"/>
+        <text x="612" y="73" font-size="11.5" text-anchor="middle">标签 C</text>
+        <rect x="360" y="94" width="300" height="24" rx="6" class="f-oks s-ok" stroke-width="1.4"/>
+        <text x="510" y="110" font-size="11.5" class="f-ok" text-anchor="middle">译文独占整行 · 宽 93 px 起</text>
+        <text x="360" y="136" font-size="11.5" class="f-ok">→ 三判据全 0，宽度与结构均无变化（PASS）</text>
+
+        <line x1="330" y1="80" x2="352" y2="80" class="s-cur" stroke-width="1.6" marker-end="url(#ar)" opacity="0.5"/>
+
+        <!-- 底部：内联宿主 -->
+        <text x="0" y="176" font-size="12.5" font-weight="700">内联级宿主（display:inline-block）</text>
+        <rect x="0" y="190" width="150" height="26" rx="13" class="f-bads s-bad" stroke-width="1.3"/>
+        <text x="75" y="207" font-size="11" class="f-bad" text-anchor="middle">旧版：撑成两截 · 高度 +18px</text>
+        <rect x="0" y="224" width="300" height="24" rx="6" class="f-none s-bad" stroke-dasharray="4 3"/>
+        <rect x="4" y="228" width="292" height="16" rx="4" class="f-bads s-bad" stroke-width="1.2" opacity="0.75"/>
+        <text x="150" y="240" font-size="10.5" class="f-bad" text-anchor="middle">块级译文打断行盒，pill 被拆成上下两段</text>
+
+        <text x="360" y="176" font-size="12.5" font-weight="700">改为内联译文（&lt;span&gt;）</text>
+        <rect x="360" y="190" width="150" height="26" rx="13" class="f-surf2 s-line"/>
+        <text x="435" y="207" font-size="11" text-anchor="middle">Pill 标签 <tspan class="f-ok" font-size="10.5">译文</tspan></text>
+        <rect x="360" y="224" width="300" height="24" rx="6" class="f-none s-ok"/>
+        <text x="510" y="240" font-size="10.5" class="f-ok" text-anchor="middle">行盒完整 · 高度零变化 · 无新增兄弟节点</text>
+      </svg>
+    </div>
+    <figcaption>机制 ① 与机制 ② 的可视化对照。左列是被动「追加进去」的后果，右列是分流决策后的结果。</figcaption>
+  </figure>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s3">
+  <h2><span class="num">SECTION 03</span>插入点决策树</h2>
+
+  <h3>3.1 为什么不能只看标签</h3>
+  <p>
+    早先的两种全局策略，每种都恰好在一半场景上是错的：
+  </p>
+  <ul>
+    <li>
+      <strong>一律插成兄弟节点。</strong>代价全落在父容器上 —— 子项数翻倍、<code>:nth-child</code> 错位、
+      <code>p + p</code> 失效；在 <code>display:flex</code> 的行容器里，译文会变成一个新弹性项，
+      和原有子项平分宽度（机制 ①）。
+    </li>
+    <li>
+      <strong>一律追加进单元内部。</strong>那么在横向弹性容器（译文变成弹性项）与内联级宿主（行盒被打断）上翻车（机制 ②）。
+    </li>
+  </ul>
+  <p>
+    关键在于：<strong>光看标签判断不出来</strong>。<code>&lt;div&gt;</code> 既可能是普通块，
+    也可能是弹性行容器。只有 <code>getComputedStyle(el).display</code> 能区分。
+    所以决策的第一依据是「这个元素实际怎么排版」，而不是「它叫什么标签」。
+  </p>
+
+  <h3>3.2 决策树</h3>
+
+  <figure>
+    <div class="figbox">
+      <svg class="f-cur" viewBox="0 0 680 604" role="img" aria-label="插入点决策树：硬约束、零高度折叠区、裁切容器、insertMode、inline 级、绝对定位、横向弹性容器、纵向弹性与网格、默认内部追加">
+        <defs>
+          <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+            <path d="M0,0 L7,3.2 L0,6.4 z" class="f-cur"/>
+          </marker>
+        </defs>
+        <g font-size="11.5">
+          <!-- 0 -->
+          <rect x="200" y="6" width="280" height="36" rx="9" class="f-accs s-acc" stroke-width="1.4"/>
+          <text x="340" y="29" text-anchor="middle" font-weight="650">取一个翻译单元 el</text>
+          <line x1="340" y1="42" x2="340" y2="60" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 1 硬约束 -->
+          <rect x="150" y="60" width="380" height="38" rx="9" class="f-surf2 s-line"/>
+          <text x="340" y="77" text-anchor="middle" font-weight="650">① <tspan font-family="monospace">shouldAppendInside(el)</tspan> ？</text>
+          <text x="340" y="91" text-anchor="middle" font-size="10.5" class="f-t3">td / th / li / dt / dd / tr —— 插兄弟会破坏 HTML 结构</text>
+          <text x="676" y="84" font-size="11" class="f-bad" font-weight="650" text-anchor="end">是 → inside（硬约束）</text>
+          <line x1="340" y1="98" x2="340" y2="116" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 2 零高度折叠区 -->
+          <rect x="130" y="116" width="420" height="38" rx="9" class="f-warns s-warn" stroke-width="1.3"/>
+          <text x="340" y="133" text-anchor="middle" font-weight="650">② <tspan font-family="monospace">clipInfo(el)</tspan> 命中零高度折叠区？</text>
+          <text x="340" y="147" text-anchor="middle" font-size="10.5" class="f-t3">max-height:0 + overflow:hidden —— 内容在，用户看不见</text>
+          <text x="676" y="140" font-size="11" class="f-bad" font-weight="650" text-anchor="end">是 → 不翻</text>
+          <line x1="340" y1="154" x2="340" y2="172" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 3 裁切容器 -->
+          <rect x="100" y="172" width="480" height="56" rx="9" class="f-oks s-ok" stroke-width="1.5"/>
+          <text x="340" y="190" text-anchor="middle" font-weight="650">③ <tspan font-family="monospace">clipInfo(el)</tspan> 落在被裁切容器里？</text>
+          <text x="340" y="205" text-anchor="middle" font-size="10.5" class="f-t3">overflow:hidden|clip 且（有效 line-clamp 或 max-height&gt;0）→ 取最外层那个</text>
+          <text x="340" y="220" text-anchor="middle" font-size="10.5" class="f-ok" font-weight="650">是 → after(最外层裁切容器)　插不进去则降级 inside</text>
+          <line x1="340" y1="228" x2="340" y2="246" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 4 用户设置 -->
+          <rect x="150" y="246" width="380" height="34" rx="9" class="f-surf2 s-line"/>
+          <text x="340" y="267" text-anchor="middle">④ <tspan font-family="monospace">insertMode</tspan> 被显式指定为 inside / sibling ？</text>
+          <text x="676" y="267" font-size="11" class="f-warn" font-weight="650" text-anchor="end">是 → 照办</text>
+          <line x1="340" y1="280" x2="340" y2="298" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 5 layoutOf -->
+          <rect x="180" y="298" width="320" height="32" rx="9" class="f-accs s-acc" stroke-width="1.3"/>
+          <text x="340" y="318" text-anchor="middle" font-weight="650">⑤ <tspan font-family="monospace">l = layoutOf(el)</tspan>　<tspan font-weight="400" font-size="10.5" class="f-t3">读 + WeakMap 缓存</tspan></text>
+          <line x1="340" y1="330" x2="340" y2="348" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 6 inline -->
+          <rect x="150" y="348" width="380" height="34" rx="9" class="f-oks s-ok" stroke-width="1.3"/>
+          <text x="340" y="362" text-anchor="middle" font-weight="650">⑥ <tspan font-family="monospace">l.display</tspan> 属于内联级？</text>
+          <text x="340" y="376" text-anchor="middle" font-size="10.5" class="f-t3">inline / inline-block / inline-flex / inline-grid / inline-table / contents / ruby</text>
+          <text x="676" y="369" font-size="11" class="f-ok" font-weight="650" text-anchor="end">是 → inline</text>
+          <line x1="340" y1="382" x2="340" y2="400" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 7 abs -->
+          <rect x="150" y="400" width="380" height="32" rx="9" class="f-surf2 s-line"/>
+          <text x="340" y="420" text-anchor="middle">⑦ <tspan font-family="monospace">l.position</tspan> 是 absolute / fixed ？　<tspan font-size="10.5" class="f-t3">已脱流，追加不推任何兄弟</tspan></text>
+          <text x="676" y="420" font-size="11" class="f-ok" font-weight="650" text-anchor="end">是 → inside</text>
+          <line x1="340" y1="432" x2="340" y2="450" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 8 flex row -->
+          <rect x="120" y="450" width="440" height="52" rx="9" class="f-warns s-warn" stroke-width="1.3"/>
+          <text x="340" y="468" text-anchor="middle" font-weight="650">⑧ <tspan font-family="monospace">display:flex</tspan> 且方向为 row ？</text>
+          <text x="340" y="486" text-anchor="middle" font-size="10.5" class="f-t3">追加进去 = 新增一个弹性项，原有子项被平分宽度（机制 ①）</text>
+          <text x="676" y="463" font-size="10.5" class="f-ok" font-weight="650" text-anchor="end">wrap → inside 整行</text>
+          <text x="676" y="481" font-size="10.5" class="f-bad" font-weight="650" text-anchor="end">nowrap → after</text>
+          <line x1="340" y1="502" x2="340" y2="520" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+
+          <!-- 9 flex col / grid -->
+          <rect x="150" y="520" width="380" height="30" rx="9" class="f-surf2 s-line"/>
+          <text x="340" y="539" text-anchor="middle">⑨ <tspan font-family="monospace">flex / inline-flex 列方向</tspan> 或 <tspan font-family="monospace">grid</tspan> ？　<tspan font-size="10.5" class="f-ok" font-weight="650">→ inside</tspan></text>
+          <line x1="340" y1="550" x2="340" y2="568" class="s-cur" stroke-width="1.3" marker-end="url(#ar2)"/>
+          <text x="340" y="586" text-anchor="middle" font-weight="650">⑩ 其余（普通块 / 列表项 / 单元格…）→ inside</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption>
+      决策顺序即优先级。<strong>①②③ 是三道不受用户设置影响的闸门</strong>：① 保 HTML 结构，
+      ② 不翻用户看不见的东西，③ 把译文挪出会被裁掉的子树。
+      其中 ③ <strong>刻意优先于 ④ <code>insertMode</code></strong> —— 用户把插入方式设成「内部追加」是为了对照排障，
+      可这里被裁掉的是<strong>译文本身</strong>，看不到东西就谈不上对照；这一条也会记进 <code>reason='clipped'</code>，让排障的人知道发生过什么。
+    </figcaption>
+  </figure>
+
+  <h3>3.3 决策树产出的四种形态</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:96px">分支</th><th style="width:24%">产出节点</th><th style="width:20%">类名</th><th>为什么是这个形态</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>inline</code></td>
+          <td><code>&lt;span&gt;</code>，跟在原文之后</td>
+          <td><code>ct-trans--inl</code></td>
+          <td>内联译文不新增行盒，宿主高度零变化；<code>display:inline</code>、<code>width:auto</code>、<code>line-height:inherit</code></td>
+        </tr>
+        <tr>
+          <td><code>inside</code></td>
+          <td><code>&lt;div&gt;</code> 追加到单元末尾</td>
+          <td><code>ct-trans--in</code></td>
+          <td>不新增兄弟节点 → 容器子项数、<code>:nth-child</code>、<code>p + p</code> 全不受影响；<code>width:100%</code>、<code>grid-column:1/-1</code></td>
+        </tr>
+        <tr>
+          <td><code>inside</code> + <code>wrap</code></td>
+          <td>同上，额外加一个标记类</td>
+          <td><code>ct-trans--in ct-trans--wrap</code></td>
+          <td>可换行的弹性容器里，给译文一个「整行宽」的弹性基准（<code>flex:0 0 100%</code>）它就独占新一行，原有子项一个都不动</td>
+        </tr>
+        <tr>
+          <td><code>after</code></td>
+          <td><code>&lt;div&gt;</code> 插到 anchor 之后</td>
+          <td><code>ct-trans--out</code></td>
+          <td>
+            只用于「追加进去必然破坏原有布局」的容器。有<strong>两条来路</strong>，靠 <code>reason</code> 区分：<br>
+            · <code>reason:'flex-row'</code> —— 不可换行的横向弹性容器，追加进去会平分原有子项宽度<br>
+            · <code>reason:'clipped'</code> —— 被 <code>overflow:hidden</code> 裁切的容器，留在里面译文会被裁掉（§3.6）
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note ok">
+    <span class="t">为什么 wrap 的弹性容器宁可留在容器内，也不挂到外面</span>
+    <p>
+      因为容器允许换行时，<strong>新项可以自己去新的一行</strong>，原有子项宽度完全不受影响 ——
+      此时留在容器内部反而更好：译文与原文的归属关系还在，
+      也不会让容器的 <code>:nth-child</code> 错位。这是「挂到外面」与「留在里面」两个方案里更优的那个。
+    </p>
+  </div>
+
+  <h3>3.4 安全锚点：最多上溯 4 层</h3>
+  <p>
+    需要挂到容器外面时，锚点不能随手选父节点 —— 父节点本身可能也是个弹性容器，
+    挂到它之后同样会变成新的弹性项。<code>safeAnchor()</code> 因此<strong>向上寻找第一个不处于
+    弹性 / 网格 / 表格行上下文的祖先</strong>，最多上溯 4 层。
+  </p>
+  <p>
+    为什么是 4 层而不是无限上溯：<strong>译文离原文越远，归属感越弱</strong>。
+    与其把译文扔到页面顶部一个「安全」的位置，不如就地退化 —— 用户至少还能看出这句译文对应哪段原文。
+  </p>
+
+  <h3>3.5 决策前移到采集阶段（这一条同时也是性能设计）</h3>
+  <p>
+    <code>getComputedStyle</code> 是只读的，但在<strong>边写边读</strong>的场景里它会退化成
+    <strong>强制同步布局</strong>：每次读取都强迫浏览器把刚写的样式重新算一遍。
+    渲染阶段正是在不停地写 DOM。
+  </p>
+  <p>
+    所以决策<strong>全部在采集阶段算完</strong>，把结果（<code>plan</code>）挂在单元对象上随之下传。
+    采集阶段是纯读，整轮最多触发一次样式重算。结果同时缓存进 <code>WeakMap</code>，
+    跨轮次复用 —— 同一元素反复采集也只读一次。
+  </p>
+
+<pre><code><span class="c">// 采集阶段：纯读，算完就存；这是唯一一次样式重算</span>
+out.push({ el, text, hash, <b>plan: placementFor(el, settings)</b> });
+
+<span class="c">// 渲染阶段：只按 plan 落地，一次读都不做</span>
+renderUnit(unit, text, style, <b>wave[k].plan</b>);</code></pre>
+
+  <div class="note">
+    <span class="t">实测成本</span>
+    <p>
+      在 39 类宿主夹具上同进程交替测量，两次独立复跑：<code>auto</code> 冷启动
+      <b>4.7 / 3.7 ms</b>、温态 <b>1.7 / 0.7 ms</b>；完全不读样式的 <code>inside</code>
+      <b>1.3 / 0.8 ms</b>。
+    </p>
+    <p>
+      两次都指向同一个结论：<strong>一次性成本约 3.0 ms，稳定态边际成本落在噪声内（≈0）</strong>。
+      详见 §7。
+    </p>
+  </div>
+
+  <h3>3.6 裁切容器：让译文根本不进入会被裁掉的子树（v1.6.0）</h3>
+  <p>
+    前四轮修的形变都有一个共同点 —— <strong>几何量会变</strong>，所以 S1–S4 抓得住。
+    但用户报的这条不一样：「中文翻译后存在被隐藏内容无法显示更多」。
+    这里的失败是<strong>译文被站点自己的裁切容器吃掉</strong>：
+  </p>
+  <ul>
+    <li>站点用 <code>-webkit-line-clamp:3</code> 做「摘要三行」，译文插进这个容器里，第 4 行起就看不见了；</li>
+    <li>站点用 <code>max-height:200px; overflow:hidden</code> 做固定高度卡片，译文一插进去就被裁掉一截；</li>
+    <li>更麻烦的是，这类容器往往<strong>带着站点自己的「展开全文」按钮</strong>。译文撑高了内容，
+      按钮的折叠逻辑按站点原有的高度阈值判断，于是「点展开」的行为跟着错乱 —— 我们改了别人页面的交互。</li>
+  </ul>
+  <p>
+    关键洞察：<strong>译文被裁掉之后，页面所有元素的宽高都不变</strong>。S1 结构没动、S2 宽度没挤、
+    S3 高度没变、S4 译文也不扁 —— 前四条判据全绿，但用户什么都看不到。这就是必须单独设 S5 的原因。
+  </p>
+
+  <h4>两条判据刻意分开</h4>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:26%">判据</th><th style="width:38%">成立条件</th><th>处理方式</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>clipsContent(el)</code><br><span class="tag warn">会被裁</span></td>
+          <td>
+            <code>overflow-x|y</code> 属于 <code>hidden</code> / <code>clip</code>，<b>且</b>满足其一：<br>
+            · <code>-webkit-line-clamp</code> 是有效数值（≥1）<br>
+            · <code>max-height</code> 解析为 &gt; 0
+          </td>
+          <td>译文<strong>挂到容器之后</strong>（<code>reason:'clipped'</code>），不进它的子树</td>
+        </tr>
+        <tr>
+          <td><code>collapsesContent(el)</code><br><span class="tag fail">看不见</span></td>
+          <td>同样是被裁切的容器（<code>overflow:hidden</code>），<strong>但</strong> <code>max-height === 0</code></td>
+          <td><strong>这一单元干脆不翻</strong>（<code>plan.collapsed</code>）</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note bad">
+    <span class="t">这两条为什么不能合并成一条「被裁切」</span>
+    <p>
+      看上去 <code>max-height:0</code> 只是 <code>clipsContent</code> 的一个特例，合并起来更简单。
+      但合并之后，<code>max-height:0</code> 的折叠区会走进<strong>「挂到容器之后」</strong>那个分支 ——
+      于是<strong>页面上每一个收起的折叠块旁边，都会凭空多出一段译文</strong>。
+    </p>
+    <p>
+      零高度折叠区（典型的 <code>&lt;details&gt;</code> 未展开体、JS 折叠面板）里的内容是
+      <strong>用户主动选择不看</strong>的，译文不该替用户把它摊开。
+      所以判据必须分开：<strong>会被裁 → 挪出去；完全零高度 → 不翻</strong>。
+      这条在 <code>selftest.mjs</code> 里有专门的反向断言：夹具写明「<code>max-height:0</code> 不是
+      <code>clipsContent</code>」，注释里写着合并会造成的具体后果。
+    </p>
+  </div>
+
+  <h4>取最外层，不是最近一层</h4>
+  <p>
+    <code>clipInfo(el)</code> 沿祖先链<strong>最多上溯 6 层</strong>（<code>CLIP_HOPS</code>），返回<strong>最外层</strong>那个裁切容器。
+    嵌套裁切（外面 <code>max-height</code>、里面 <code>line-clamp</code>）很常见，如果只取最近一层，
+    译文被挪到内层容器之后，<strong>还是会被外层裁掉</strong>。
+  </p>
+  <p>
+    这个探测<strong>不进 <code>WeakMap</code> 缓存</strong>，与 <code>layoutOf</code> 不同。
+    原因是裁切状态会随站点自己的交互变化（点「展开全文」之后 <code>max-height</code> 就没了），
+    缓存下来会让「展开之后再翻」拿到过期结论。上溯 6 层是纯 DOM 遍历，不触发样式重算，代价可接受。
+  </p>
+
+  <h4>一个曾经写反的守卫</h4>
+  <p>
+    分支写好了，基准跑出来却是 <code>clippedTrans = 6</code>、<code>rescuedFromClip = 0</code> ——
+    <strong>这个分支一次都没生效过</strong>。原始守卫是：
+  </p>
+<pre><code><span class="c">// ✗ 恒为 false：safeAnchor 一路向上走，返回的锚点必然是 el 的祖先，祖先当然 contains(el)</span>
+if (clipAnchor !== el &amp;&amp; !clipAnchor.contains(el)) { return { kind: 'after', anchor: clipAnchor }; }</code></pre>
+  <p>
+    条件「锚点不包含自己」在一个<strong>上溯求锚点</strong>的函数里永远不成立，
+    于是每次都退化到 <code>inside</code>。修复不是把条件反过来（那会走进另一侧的恒真），
+    而是把判据换成真正想问的那个问题：<strong>「这个位置插不插得进去」</strong>。
+  </p>
+<pre><code>function canInsertAfter(anchor, el) {
+  <span class="c">// 锚点必须有元素父节点；父节点不能在收不下块级子元素的白名单里（tr / select…）；</span>
+  <span class="c">// 锚点不能是 el 自己的后代（否则等于把译文插回原文内部）</span>
+  return !!anchor.parentElement
+      &amp;&amp; !NO_BLOCK_CHILD[anchor.parentElement.tagName]
+      &amp;&amp; !el.contains(anchor);
+}</code></pre>
+  <p>
+    修后 <code>clippedTrans = 0</code>、<code>rescuedFromClip = 6</code>。
+    更关键的是<strong>改动前后 <code>wShrunk / xMoved / hInline / squeezed</code> 四项逐组完全一致</strong> ——
+    这证明修的是「该生效却没生效」的缺陷，而不是顺手改了别的行为。没有这组对照，
+    就分不清「新分支生效了」和「只是测试数字变了」。
+  </p>
+
+  <div class="note ok">
+    <span class="t">为什么不用「给译文加个 class，让站点别裁它」这个更省事的做法</span>
+    <p>
+      给 <code>.ct-trans</code> 加 <code>-webkit-line-clamp:unset</code> 之类，等于<strong>直接改站点自己的样式</strong> ——
+      而且改的是容器，不是译文。容器上还挂着站点的折叠逻辑与「展开全文」按钮，
+      我们一动它，站点自己那套就跟着坏。把译文挪到容器之外，<strong>站的还是「不动别人页面」这条底线</strong>：
+      只往页面上增加自己的节点，不修改任何既有元素的样式与结构。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s4">
+  <h2><span class="num">SECTION 04</span>译文视觉规范（UI）</h2>
+
+  <h3>4.1 字号：两条规则相乘，而不是一条</h3>
+  <p>
+    译文大小 = <code>min(相对原文的比例, 页面正文基准字号)</code>。两条缺一不可。
+  </p>
+  <ul>
+    <li>
+      <strong>相对原文的比例</strong>（默认 <b>80%</b>，设置页可调、拖动即时生效）负责让正文段落里的译文「小一号」。
+    </li>
+    <li>
+      <strong>页面基准字号封顶</strong>负责标题。百分比字号是相对<strong>父元素</strong>解析的：
+      译文插进 <code>&lt;h1&gt;</code> 之后，父元素就是那个 32px 的标题，
+      光写比例会让译文也变成 25.6px，整页视觉重量直接翻倍。
+    </li>
+  </ul>
+  <p>
+    基准字号只读一次 <code>body</code> 的 computed <code>font-size</code>，并按 11–18px 钳制；
+    <strong>整页只读这一次，不随单元数增长</strong>。
+  </p>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:22%">宿主</th><th class="num-cell">宿主字号</th><th class="num-cell">比例（80%）</th><th class="num-cell">封顶值</th><th class="num-cell">译文最终</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>正文 <code>&lt;p&gt;</code></td>
+          <td class="num-cell">16 px</td>
+          <td class="num-cell">12.8 px</td>
+          <td class="num-cell">16 px</td>
+          <td class="num-cell"><b>12.8 px</b></td>
+          <td>比例生效，读起来明显小一号</td>
+        </tr>
+        <tr>
+          <td>标题 <code>&lt;h2&gt;</code></td>
+          <td class="num-cell">24 px</td>
+          <td class="num-cell">19.2 px</td>
+          <td class="num-cell">16 px</td>
+          <td class="num-cell"><b>16 px</b></td>
+          <td>被 cap 压住 —— 与正文基准同号，不会撑大视觉重量</td>
+        </tr>
+        <tr>
+          <td>大标题 <code>&lt;h1&gt;</code></td>
+          <td class="num-cell">32 px</td>
+          <td class="num-cell">25.6 px</td>
+          <td class="num-cell">16 px</td>
+          <td class="num-cell"><b>16 px</b></td>
+          <td>同上 —— 没有 cap 的话这里会是 25.6px</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:12.5px;color:var(--text-3)">
+    实测值取自 <code>tools/bench-results/structure-2500.json</code> 的 <code>fontSize</code> 字段（真实 Chrome）。
+  </p>
+
+  <h3>4.2 默认样式：素净（plain）</h3>
+  <p>
+    装饰<strong>本身就是「改变页面」</strong>。一个「译」字标记加一条色条，
+    在整页每一段上重复几百次，就已经不是「保持原样」了。
+  </p>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:22%">样式</th><th style="width:39%">效果</th><th>代价</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>素净</b> <span class="tag pass">默认</span></td>
+          <td>不加边框、不加背景、不加「译」标记；字号调小、<code>opacity:0.82</code>、颜色取 <code>inherit</code></td>
+          <td>几乎为零 —— 深色页、品牌色底、图片背景上都跟随页面，不会糊掉</td>
+        </tr>
+        <tr>
+          <td><b>标注</b></td>
+          <td>左侧 2px 竖线 + 淡色「译」标记，一眼区分原文与译文</td>
+          <td>这两样装饰本身就是对页面外观的改动，且逐段重复</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>4.3 结构层与修饰层分离</h3>
+  <p>
+    <code>.ct-trans</code> 基类<strong>只负责结构</strong>：<code>display</code>、外边距、字号、行高、
+    <code>min-width:0</code>。<strong>不含</strong>任何颜色、边框、内边距、<code>::before</code>。
+    所有视觉修饰下沉到 <code>.ct-s-plain</code> / <code>.ct-s-accent</code>。
+  </p>
+
+<pre><code><span class="c">/* 结构层：零装饰，颜色一律 inherit */</span>
+.ct-trans {
+  display: block <span style="color:var(--accent)">!important</span>;
+  margin: 2px 0 0 <span style="color:var(--accent)">!important</span>;
+  padding: 0 <span style="color:var(--accent)">!important</span>;  border: 0 <span style="color:var(--accent)">!important</span>;
+  background: transparent <span style="color:var(--accent)">!important</span>;
+  font-size: min(var(--ct-scale, 80%), var(--ct-cap, 100%)) <span style="color:var(--accent)">!important</span>;
+  color: inherit <span style="color:var(--accent)">!important</span>;
+  min-width: 0 <span style="color:var(--accent)">!important</span>;   <span class="c">/* 允许弹性项被压缩，而非溢出 */</span>
+}
+<span class="c">/* 修饰层：素净默认只有一条 */</span>
+.ct-s-plain  { color: inherit; opacity: 0.82; }
+.ct-s-plain::before { content: none <span style="color:var(--accent)">!important</span>; }</code></pre>
+
+  <p>
+    这样拆的好处是：<strong>判据与样式解耦</strong>。以后再加新样式，
+    只要它不碰结构层，布局判据就不会因为「换了个皮肤」而失效。
+  </p>
+
+  <h3>4.4 深色模式</h3>
+  <p>
+    素净样式走 <code>inherit</code>，在深色模式下<strong>自动成立，无需任何额外规则</strong> ——
+    这正是选 <code>inherit</code> 而不是写死深色的原因。
+    深色模式只需要为「标注」样式补一条覆盖。
+  </p>
+
+  <h3>4.5 可调范围</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:26%">设置项</th><th style="width:22%">范围</th><th>默认</th></tr></thead>
+      <tbody>
+        <tr><td>译文字号比例</td><td><code>60%</code> – <code>100%</code></td><td><code>80%</code>（本轮由 85% 下调）</td></tr>
+        <tr><td>译文样式</td><td>素净 / 标注</td><td>素净</td></tr>
+        <tr><td>插入方式</td><td>智能分流 / always inside / always sibling</td><td>智能分流</td></tr>
+        <tr><td>目标语言</td><td>41 种（源语言任意 ↔ 目标语言任意）</td><td>简体中文</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    保留两个「强制」选项不是给普通用户用的 —— 它们是<strong>对照与排障入口</strong>：
+    出了形变问题时，可以一键切成 <code>inside</code> / <code>sibling</code> 来定位是不是插入点的问题。
+    注意这两个入口<strong>绕不过 §3.6 的裁切判定</strong>（那道闸门在它们之前），理由见该节。
+  </p>
+
+  <h3>4.6 页内开关：可发现性与状态语义（v1.6.0）</h3>
+  <p>
+    页内开关（<code>content/toggle.js</code>）跑在别人的页面上，它的设计约束和弹窗/设置页不同：
+    <strong>用户不会「打开」它，只会撞见它</strong>。所以「好不好看」不重要，
+    「一眼看出它是干什么的、现在处于什么状态」才重要。用户反馈的「开关设计的并不合理，
+    而且不易察觉如何使用」正是这条没做到。
+  </p>
+  <p>三处改动，对着三个具体症状：</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:22%">症状</th><th style="width:34%">原来的做法</th><th>改法</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>不知道按钮是干什么的</b></td>
+          <td>文案是形容词「已译」—— 说的是<strong>状态</strong>，不是<strong>动作</strong>。用户看到一个状态词，
+            不知道该不该点，也不知道点了会发生什么</td>
+          <td>
+            全部改成<strong>动词在前</strong>：<code>翻译此页</code> / <code>显示原文</code>。
+            形容词描述现状，动宾短语描述下一步 —— 后者才能回答「我该做什么」
+          </td>
+        </tr>
+        <tr>
+          <td><b>找不到次要功能</b></td>
+          <td>「站内不再翻译」「打开设置」等收在<strong>悬停才浮现</strong>的工具区里。
+            触屏设备根本没有悬停态，鼠标用户也要先撞上才知道有东西</td>
+          <td>
+            工具区改为<strong>常显</strong>，并且把内容收进一个 ⋯ 菜单（<code>aria-haspopup</code> +
+            <code>role="menuitem"</code>，键盘可达）。常显的是<strong>入口</strong>，不是内容 ——
+            这样既不占地方，也不用猜
+          </td>
+        </tr>
+        <tr>
+          <td><b>看不出会译成哪门语言</b></td>
+          <td>图标恒为「译」字。支持多语言互译之后这个图标彻底失去信息量 ——
+            同一个图标，可能是译成日文，也可能是译成英文</td>
+          <td>
+            图标改为<strong>目标语言标记</strong>：<code>CT.langMark('ja') === '日'</code>、
+            <code>'en' === 'EN'</code>、繁体中文是「繁」。
+            图标本身成为状态的一部分，用户不必去设置页回想「我上次设的是哪门语言」
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>首次使用的一次性引导</h4>
+  <p>
+    控件再清楚，第一次见到它的人也不知道<strong>页面上多了这个东西</strong>。
+    所以首次注入时在开关旁显示一个引导气泡，说明「点击此处翻译本页」，
+    并在气泡上留一个关闭入口。点「知道了」、或发生任何操作之后，
+    <code>toggleGuideDone</code> 落盘，<strong>永久不再出现</strong>。
+  </p>
+  <div class="note">
+    <span class="t">为什么是「一次性」而不是「可关闭的常驻提示」</span>
+    <p>
+      常驻提示会变成用户每天要手动关掉一次的东西，而它承载的信息<strong>只在第一次有用</strong>。
+      判断一次性的标准不是「重不重要」，而是「第二次看还值不值」。
+      落盘用的是设置里的布尔位而不是 <code>sessionStorage</code> —— 后者在每次新开标签页都会重置，
+      等于把「一次性」做成了「每天一次」。
+    </p>
+  </div>
+
+  <h4>三个浮层必须互斥</h4>
+  <p>
+    开关上有三个可展开的东西：⋯ 菜单、引导气泡、黑名单二次确认。
+    它们都由<strong>同一个小控件</strong>触发，位置重叠，各自还带点击外部关闭的行为。
+    如果同时打开，不但互相遮挡，点击外部该关谁、Esc 该按几层都会变得不可预测。
+  </p>
+  <p>
+    因此统一收进一个 <code>closeOverlays(except)</code>：<strong>打开任一层先关掉其余两层</strong>，
+    点控件外部或按 Esc <strong>逐层</strong>收起。
+    关键细节是这条逻辑<strong>对 <code>update()</code> 这条直写通道同样生效</strong> ——
+    后台推来的状态更新（比如黑名单判定结果）如果直接改 DOM，会绕过互斥逻辑，
+    所以 <code>update()</code> 里在检测到确认条状态变化时，同步关掉菜单与气泡。
+  </p>
+
+  <div class="note warn">
+    <span class="t">这条为什么归在「布局保全」文档里</span>
+    <p>
+      因为开关是<strong>唯一一个默认存在于别人页面上的</strong>我们自己的 UI。
+      它的浮层一旦失控，破坏的是宿主页面的观感与交互 ——
+      这与「不动别人页面」是同一个约束，只是从几何层换到了交互层。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s5">
+  <h2><span class="num">SECTION 05</span>判定闸门（业务）：噪声、语言口径、不可译片段</h2>
+
+  <h3>5.1 为什么「能翻就翻」是错的</h3>
+  <p>
+    原始的判定逻辑是纯技术性的：够长、不是邮箱、不是 URL、语种是外语 → 翻译。
+    但业务上有一类文本<strong>不该翻</strong>：机器可读的源数据。它有两重危害：
+  </p>
+  <ol>
+    <li><strong>翻译无意义</strong> —— 把 <code>&lt;div class="card"&gt;</code> 翻成中文，用户看到的是一串乱码般的产物。</li>
+    <li><strong>体积极大</strong> —— 一段 HTML 源码或 JSON-LD 动辄几百上千字符，插进窄列布局后会被拉成一根竖条，
+      视觉上就像整页变形（机制 ④）。</li>
+  </ol>
+
+  <h3>5.2 两条规则与阈值</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:24%">规则</th><th style="width:38%">命中条件</th><th>设计理由</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>looksLikeMarkup</code><br><span class="tag warn">reason: markup</span></td>
+          <td>
+            文本含 <code>&lt;</code>，且满足其一：<br>
+            · 出现「闭合标签紧邻开启标签」<b>且</b>标签数 ≥ 2<br>
+            · 标签数 ≥ 3 <b>且</b> 标签字符占比 ≥ <b>20%</b>（<code>标签长度和 × 5 ≥ 文本长度</code>）
+          </td>
+          <td>
+            两条并列是为了分开处理两种情况：「一段被转义的 HTML」标签密集、占比高；
+            「嵌在自然语言里的一个标签」标签稀疏、占比低。<br>
+            <code>&lt;</code> 前置短路让绝大多数正文（不含尖括号）零成本跳过
+          </td>
+        </tr>
+        <tr>
+          <td><code>looksLikeDataBlob</code><br><span class="tag warn">reason: data-blob</span></td>
+          <td>
+            长度 ≥ <b>24</b> 且有引号，且满足其一：<br>
+            · 命中 <code>"@type"</code> / <code>"@context"</code> / <code>baseSalary</code> /
+              <code>MonetaryAmount</code> / <code>datePosted</code><br>
+            · <code>"</code> 紧跟 <code>:</code> 的序列出现 ≥ <b>4</b> 次
+          </td>
+          <td>
+            长度阈值先挡掉正常的短引文；关键词表覆盖 JSON-LD 与常见招聘/电商结构化数据；
+            <code>":</code> 计数是兜底 —— 任何序列化对象都长这样，不依赖具体字段名
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>5.3 闸门必须放在整条判定链的前面</h3>
+  <p>
+    位置不是随意的。噪声文本<strong>通常很长</strong>，如果先跑语种判定，
+    就等于对一段几百字符的源码做完整的多语种打分后再把它丢掉 —— 白花的时间是纯浪费。
+    所以闸门插在「邮箱 / URL 之后、语言判定之前」：
+  </p>
+
+<pre><code>function isTranslatableText(text) {
+  <span class="c">// …长度下限、邮箱、URL…</span>
+  <span style="color:var(--accent)">if (looksLikeMarkup(text))  return { ok: false, reason: 'markup' };</span>
+  <span style="color:var(--accent)">if (looksLikeDataBlob(text)) return { ok: false, reason: 'data-blob' };</span>
+  <span class="c">// …语言判定（最贵的一步）…</span>
+}</code></pre>
+
+  <h3>5.4 这是有意的行为变更，不能被「等价」掩盖</h3>
+  <div class="note warn">
+    <span class="t">工程纪律</span>
+    <p>
+      加闸门<strong>改变</strong>了判定结果 —— 这是产品决策，不是重构。
+      因此不能用「新旧完全等价」一句话盖过去。做法是在等价性测试里把它<strong>精确隔离</strong>成三类统计：
+    </p>
+    <pre style="margin:8px 0 0"><code>逐码元比对：   194559 个码点
+文本串比对：   194962 条，差异 0 条
+可译性判定：   5188 条
+  · 未经噪声闸门的差异：     0 条   <span class="c">← 必须为 0，否则是 bug</span>
+  · 被噪声闸门拦下（预期）： 805 条 <span class="c">← 只允许「要翻 → 不翻」这一个方向</span>
+  · 反向差异（不翻 → 要翻）： 0 条   <span class="c">← 必须为 0，任何情况下都不允许</span>
+
+结果：除噪声闸门之外完全等价 ✔</code></pre>
+    <p style="margin-top:8px">
+      这样任何<strong>顺带</strong>改坏判定链的改动都会让第一类或第三类不再是 0，测试立刻报红。
+    </p>
+  </div>
+
+  <h3>5.5 语言判定：单一数据源与简繁严格口径（v1.6.0）</h3>
+  <p>
+    原先目标语言只有「简体中文 / 繁体中文」两项，判据散落在三处：
+    设置页的 <code>&lt;select&gt;</code>、弹出面板的语言名映射、以及后台提示词里的语言名。
+    加一门语言要改三处，漏改一处的症状是<strong>静默的</strong> —— 下拉里能选，提示词里却还是中文。
+  </p>
+  <p>
+    现在语言表下沉为<strong>单一数据源</strong> <code>CT.LANGS</code>（41 种，每种带一个 <code>mark</code> 标记）：
+  </p>
+<pre><code>CT.SOURCE_LANGS = [{ id:'auto' }].concat(CT.LANGS);   <span class="c">// 源语言多一个「自动识别」</span>
+CT.TARGET_LANGS = CT.LANGS;                            <span class="c">// 目标语言是全集</span>
+
+CT.langLabel(id)   <span class="c">// "日本語"        —— 设置页下拉与 title</span>
+CT.langMark(id)    <span class="c">// "日"            —— 页内开关的图标</span>
+CT.langShort(id)   <span class="c">// "日" / "EN" / "繁" —— 弹窗统计格（88px 宽放不下全名）</span></code></pre>
+  <p>
+    后台的 <code>LANG_PROMPT_NAME</code>（41 条）与这份表<strong>同源</strong>，
+    DeepL 的 <code>DEEPL_TARGET_MAP</code> 也补齐了 —— 遇到底层引擎不支持的语向，
+    现在是<strong>明确报错</strong>，而不是悄悄按中文处理。
+  </p>
+
+  <h4>简繁为什么必须按「不同语言」判</h4>
+  <p>
+    把 <code>zh-Hans</code> 和 <code>zh-Hant</code> 当成同一种语言，会让整页闸门失效 ——
+    页面是繁体、用户要简体，闸门判「已经是目标语言」直接不翻。反过来也成立。
+    所以 <code>isSameLanguageStrict()</code> 采用严格口径：<strong>简繁算两种语言</strong>。
+  </p>
+  <p>
+    但严格口径需要一个可靠的判据。<code>scriptVariant()</code> 的做法是<strong>投票</strong>，
+    依据是一张 <code>CT.VARIANT_PAIRS</code>（<strong>120 对</strong>成对锚点表）：
+    每对是同一个字在简繁两侧的写法（<code>国/國</code>、<code>这/這</code>、<code>后/後</code>…）。
+    这张表有四条入选约束，缺一条就会让投票偏向错误的一侧：
+  </p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:24%">约束</th><th>为什么必须</th></tr></thead>
+      <tbody>
+        <tr><td>两侧等长</td><td>不出现「一个简体对两个繁体」，否则同一次命中在两侧计的不是同一票</td></tr>
+        <tr><td>各自无重复</td><td>同一个字在同一侧出现两次，会让那个字被计两票 —— 投票变成加权，而权重是笔误</td></tr>
+        <tr><td><b>两侧无交集</b></td><td>最常见的坑：简繁同形的字（如「人」「中」）两侧都收，投出来的结果恒为平票</td></tr>
+        <tr><td>无同形废对</td><td><code>后/後</code> 之外的「看起来一样其实一样」的对要剔除，它们只有噪声，没有信号</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    整页闸门也从「源语言 === 目标语言」换成 <code>needsPageTranslation(source, target, variant)</code> ——
+    <strong>必须把检测出的 <code>variant</code> 一起传进来</strong>，否则简体页面配繁体目标会被误判为「无需翻译」。
+    控件状态（「无需翻译」四态之一）用的是<strong>同一条判据</strong>，不会出现「按钮说不用翻、闸门却放行」这种自相矛盾。
+  </p>
+
+  <h3>5.6 不可译片段掩码：让引擎不该改的东西改不了（v1.6.0）</h3>
+  <p>
+    用户报的「部分翻译不正确，请校准」里，有一类根源不在引擎的翻译质量，而在
+    <strong>我们把不该交给引擎的东西交了出去</strong>：URL 被翻成中文、<code>{count}</code> 占位符被译掉、
+    <code>v1.2.3</code> 变成 <code>v1.2.3版</code>、代码标识符被改大小写。
+    换引擎治不了 —— 这是任何机器翻译都会做的事。
+  </p>
+  <p>
+    做法是<strong>在提交之前把这些片段摘出原文</strong>，用<strong>私有区字符</strong>包一个编号占位：
+    <code>U+E000</code> + 36 进制编号 + <code>U+E001</code>。选私有区（U+E000–U+F8FF）的原因很直接：
+    这一段码位<strong>不属于任何自然文字的字符集</strong>，任何引擎都不会去改写它，
+    也不会把它当成单词切分或大小写折叠。引擎返回后按表还原。
+  </p>
+  <h4>保护哪些片段（14 类）</h4>
+  <p>
+    URL（含 <code>mailto:</code>）· 邮箱 · <code>{{var}}</code> / <code>{var}</code> / <code>${var}</code> 模板占位符 ·
+    <code>%s</code> / <code>%1$s</code> 格式符 · 版本号 · 颜色值 · 长哈希 · <strong>多段路径</strong> · 文件名 ·
+    <code>USER_ID</code> 风格常量 · 驼峰函数名 · 下划线名。
+  </p>
+  <p>
+    模式表里有两处顺序与阈值是刻意的，都源于误保护：
+    <strong>路径模式必须排在文件名模式之前</strong>（否则 <code>src/utils/helper.js</code> 会被拆成两个占位符，
+    中间的 <code>/</code> 交给引擎就等着被吃掉）；
+    <strong>路径要求至少 2 个斜杠</strong>（<code>input/output</code>、<code>and/or</code> 这类是真英文，该翻）。
+    术语替换用捕获前缀 <code>(^|[^A-Za-z0-9_])</code> 代替后行断言，避免某些环境下 lookbehind 不可用。
+  </p>
+
+  <h4>三条还原纪律</h4>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:22%">纪律</th><th style="width:38%">具体做法</th><th>违反之后会发生什么</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>① 正则必须要求至少一个哨兵在场</b></td>
+          <td>还原只认「哨兵 + 编号 + 哨兵」的完整形式，不接受「编号裸奔」</td>
+          <td>
+            如果写成「编号两侧哨兵都可选」，那么译文里的<strong>普通数字</strong>会被当成编号去查表替换。
+            这条是最凶的：<strong>静默、且越修越错</strong> —— 修完看到的还是「翻译不正确」
+          </td>
+        </tr>
+        <tr>
+          <td><b>② 还原失败绝不泄漏哨兵</b></td>
+          <td>编号越界 / 无表 / 表项缺失时，把<strong>哨兵连同编号一起抹掉</strong>，再降级清理裸露哨兵</td>
+          <td>用户会在译文里看到不可见的私有区字符。后果不是「难看」而是<strong>文本被污染</strong>：
+            复制出去、存进数据库、再喂给别的程序，都会带着它</td>
+        </tr>
+        <tr>
+          <td><b>③ 占位符数量守恒</b></td>
+          <td>还原前比对「原文里的占位符数」与「译文里的占位符数」，对不上就判 <code>bad</code></td>
+          <td>对不上说明引擎<strong>合并或拆分了条目</strong>，还原会把片段安到错的位置。
+            这一条<strong>不进缓存</strong> —— 宁可下次重翻，也不把错的结果固化下来</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    第三条那个「不进缓存」是这整块设计里最有分量的决定：
+    缓存的作用是「同样的输入不必再问一遍」，而这里的前提正是<strong>「这次的结果不可信」</strong>。
+  </p>
+
+  <div class="note ok">
+    <span class="t">怎么测「还原正则没写宽」——用反证，而不是用正例</span>
+    <p>
+      正例（<code>https://a.com/x</code> 被正确还原）在正则写宽时<strong>照样通过</strong>。
+      所以 <code>tools/test-protect.mjs</code> 里最关键的一条是<strong>反证式</strong>的：
+    </p>
+    <pre style="margin:8px 0 0"><code>输入：  第 1 章共 3 节
+表：    { 0: "https://a.com/x" }          <span class="c">← 表里只有编号 0</span>
+要求：  输出必须逐字等于「第 1 章共 3 节」
+
+<span class="c">// 若还原正则写成「两个哨兵都可选」：</span>
+<span class="c">//   「1」被当成编号 0 … 不，「3」被查表命中 → 变成</span>
+<span class="c">//   「第 1 章共 https://a.com/x 节」  ← 静默错误，测试立刻红</span></code></pre>
+    <p style="margin-top:8px">
+      这条断言的作用不是「确认功能可用」，而是<strong>确认判据有牙齿</strong> ——
+      它专门构造了一个「正则写宽就会错、写对就没错」的输入。
+    </p>
+  </div>
+
+  <h4>术语表：把「不该被翻的专有名词」交给用户决定</h4>
+  <p>
+    掩码解决的是<strong>机器认得出</strong>的片段（URL、占位符、版本号…），
+    但有一类只有用户知道：产品名、内部代号、希望统一译法的术语。
+    设置页「译文准确性」卡片里因此加了一张术语表，写法直接、无需文档：
+  </p>
+<pre><code>Acme Corp = 阿克米公司      <span class="c">← 左侧一律替换成右侧</span>
+SLA = 服务等级协议
+Widget =                    <span class="c">← 右侧留空 = 保持原文，一个字母都不动</span>
+# 以 # 开头的整行是注释，不参与替换</code></pre>
+  <p>
+    术语表的替换与掩码走的是<strong>同一条链</strong>：先把术语命中的位置也摘成占位符，
+    引擎只能看到占位符，返回后再统一还原。这样术语<strong>不会在引擎内部被二次翻译</strong> ——
+    如果只是「先替换成中文再送进去」，中文目标语下引擎会把它原样返回，
+    但在<strong>其它目标语言</strong>下，这段中文会被再翻一遍，等于术语表失效。
+    解析用「先找 <code>=&gt;</code>、再找 <code>=</code>、最后找制表符」的三级降级，保证 <code>parseGlossary</code> /
+    <code>formatGlossary</code> 严格互逆（读写一轮不改变内容）。
+  </p>
+  <p>
+    开关 <code>protectUntranslatable</code>（默认开）可以整体关掉掩码链。
+    关掉之后术语表也一并失效 —— 两者共用同一条链，不存在「只关一半」的状态。
+  </p>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s6">
+  <h2><span class="num">SECTION 06</span>验证方法与实测对照</h2>
+
+  <h3>6.1 三层工具，各管一段</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:24%">层</th><th style="width:26%">工具</th><th>断言的是什么</th><th>断言不了的</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>机制层</td>
+          <td><code>tools/selftest.mjs</code>（jsdom）</td>
+          <td>分支选对了没有、类名写对了没有、节点类型对不对、registry 记录对不对</td>
+          <td>落在地上到底什么样 —— 没有布局引擎，取不到宽度和高度</td>
+        </tr>
+        <tr>
+          <td>结果层</td>
+          <td><code>tools/bench-layout.html</code>（真实 Chrome）</td>
+          <td>S1 结构、S2 宽度被挤压、S3 内联宿主高度、S4 译文被压扁、S5 译文落进裁切容器</td>
+          <td>不覆盖交互与站点差异</td>
+        </tr>
+        <tr>
+          <td>字符串层</td>
+          <td><code>tools/test-protect.mjs</code>（纯字符串，无需 jsdom）</td>
+          <td>掩码摘出/还原的可逆性、精度边界、数量守恒、降级不泄漏私有区字符</td>
+          <td>不看 DOM —— 它只回答「这串文本有没有被改坏」</td>
+        </tr>
+        <tr>
+          <td>不变性层</td>
+          <td><code>tools/test-detector-equiv.mjs</code></td>
+          <td>新旧判定链逐条是否相等（除有意变更外）</td>
+          <td>新功能本身正确与否</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    分工是刻意的：<strong>jsdom 断言机制，真实浏览器断言结果</strong>。
+    只跑 jsdom 会得出「插入点都对了」的自满结论，而页面其实还在变形。
+  </p>
+
+  <h3>6.2 39 类宿主夹具 × 210 元素 · 四种跑法实测对照</h3>
+  <p>
+    夹具覆盖：卡片列、标签行（nowrap 定宽）、可换行标签行、弹性文本行、内联 pill、网格、表格、
+    HTML 源码、JSON-LD、窄列，以及 v1.6.0 新增的 <code>clamp</code>（<code>-webkit-line-clamp</code>）、
+    <code>maxh</code>（<code>max-height + overflow:hidden</code>）、<code>collapsed</code>（<code>max-height:0</code>）三组裁切夹具。
+    每组三份，共 39 个夹具 / 210 个非译文元素。
+  </p>
+
+  <div class="tbl">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:20%">插入方式</th>
+          <th class="num-cell">S2 宽度被挤压</th>
+          <th class="num-cell">S3 内联宿主高度变</th>
+          <th class="num-cell">S4 译文被挤扁</th>
+          <th class="num-cell">S5 落进裁切容器</th>
+          <th class="num-cell">最窄译文</th>
+          <th style="width:14%">判定</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>智能分流</b> <span class="tag keep">新默认</span></td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell">93 px</td>
+          <td><span class="tag pass">PASS</span></td>
+        </tr>
+        <tr>
+          <td><code>inside</code> <span class="tag warn">旧默认</span></td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell nonzero">9</td>
+          <td class="num-cell nonzero">3</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell nonzero">40 px</td>
+          <td><span class="tag fail">FAIL</span></td>
+        </tr>
+        <tr>
+          <td><code>sibling</code></td>
+          <td class="num-cell nonzero">9</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell nonzero">18</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell">93 px</td>
+          <td><span class="tag fail">FAIL</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="t">注意 <code>inside</code> 行的 S5 是 0，不是因为它修对了</span>
+    <p>
+      裁切分支（§3.6）<strong>优先于用户的 <code>insertMode</code></strong>，
+      所以连「内部追加」模式下，那 6 条会被裁掉的译文也已经挪出去了 ——
+      <code>inside</code> 行的分支分布里那个 <code>after 6</code> 就是它们。
+      这是刻意的：用户设「内部追加」是为了<strong>对照排障</strong>，
+      而被裁掉的是译文本身，看不到东西就谈不上对照。
+    </p>
+  </div>
+
+  <p>同一轮实测的其它关键量：</p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:20%">方式</th><th class="num-cell">S1 结构</th><th class="num-cell">译文块总数</th><th class="num-cell">分支分布</th><th class="num-cell">噪声夹具译文数</th><th class="num-cell">还原干净</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>智能分流</b></td>
+          <td class="num-cell zero">通过</td>
+          <td class="num-cell">78</td>
+          <td class="num-cell">inline 9 / inside 60 / after 9</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell zero">是</td>
+        </tr>
+        <tr>
+          <td><code>inside</code></td>
+          <td class="num-cell zero">通过</td>
+          <td class="num-cell">78</td>
+          <td class="num-cell">inside 72 / after 6</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell zero">是</td>
+        </tr>
+        <tr>
+          <td><code>sibling</code></td>
+          <td class="num-cell zero">通过</td>
+          <td class="num-cell">78</td>
+          <td class="num-cell">inside 18 / after 60</td>
+          <td class="num-cell zero">0</td>
+          <td class="num-cell zero">是</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note ok">
+    <span class="t">这张表最重要的不是「auto 全 0」</span>
+    <p>
+      而是<strong><code>inside</code> 和 <code>sibling</code> 都报红了</strong>。
+      一个只会全绿的判据是没有价值的 —— 它可能在测空气。
+      两个已知会崩的实现各自在<strong>不同的</strong>判据上翻车
+      （<code>inside</code> 栽在 S3/S4，<code>sibling</code> 栽在 S2/S4），
+      说明前四条判据确实咬得住真实的形变，而不是恒真。
+    </p>
+  </div>
+
+  <h3>6.3 S5 是怎么证明「有牙齿」的（v1.6.0）</h3>
+  <p>
+    前四条判据的牙齿靠「换个错的实现就报红」证明。S5 不行 ——
+    它不是靠几何量报红的，得换一种证明方式：<strong>先造出失败，再证明修复只影响了这一点</strong>。
+  </p>
+  <p>
+    裁切专项（<code>clamp</code> / <code>maxh</code> / <code>collapsed</code> 三组夹具 × 3 份）：
+  </p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:28%">指标</th><th class="num-cell" style="width:16%">修前</th><th class="num-cell" style="width:16%">修后</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>rescuedFromClip</code></td>
+          <td class="num-cell nonzero">0</td>
+          <td class="num-cell zero">6</td>
+          <td>被「救」出裁切容器的译文条数</td>
+        </tr>
+        <tr>
+          <td><code>clippedTrans</code></td>
+          <td class="num-cell nonzero">6</td>
+          <td class="num-cell zero">0</td>
+          <td>仍然留在裁切子树里的译文条数（必须为 0）</td>
+        </tr>
+        <tr>
+          <td><code>collapsedTrans</code></td>
+          <td class="num-cell">0</td>
+          <td class="num-cell zero">0</td>
+          <td>零高度折叠区里被翻译的条数（必须为 0）</td>
+        </tr>
+        <tr>
+          <td><code>afterPlacements</code></td>
+          <td class="num-cell">3</td>
+          <td class="num-cell zero">9</td>
+          <td>挂到容器之后的译文：3 条横向弹性容器 + 6 条裁切容器</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    关键在最后一行之外的那组对照：<strong>修前修后 <code>wShrunk</code> / <code>xMoved</code> /
+    <code>hInline</code> / <code>squeezed</code> 四项逐组完全一致</strong>。
+    如果只报「<code>clippedTrans</code> 从 6 变 0」，无法排除「顺手改了别的行为」；
+    有了这组逐组对照，结论才收敛到「修的是那个恒为 false 的守卫」——
+    也就是<strong>该生效却没生效</strong>，而不是引入了新的分支。
+  </p>
+
+  <h3>6.4 一条走过的弯路：判据一开始没有牙齿</h3>
+  <p>
+    第一版判据只比「结构 + 宽度」。结果很可疑：<code>inside</code> 只报出 9 条内联高度变化，
+    而 <code>sibling</code> 在「容器自身就是单元」的夹具上只是「容器变高」——
+    <strong>完全测不出截图里那个「标签被挤成一根竖条」</strong>。
+  </p>
+  <p>三处修补：</p>
+  <ol>
+    <li><code>chips</code> 夹具加 <code>width:420px</code> —— 制造空间压力，译文才「无处可去」。</li>
+    <li>新增 <code>textrow</code> 夹具：<code>display:flex</code> 的行里放块级 <code>&lt;p&gt;</code>，
+      兄弟插入会平分三列宽度 → 立刻报出 9 条宽度变小。</li>
+    <li>新增 S4 判据「译文宽度 &lt; 宿主宽度 60% 即被压扁」。</li>
+  </ol>
+  <p>
+    补完之后：<code>inside</code> 报 3 条挤扁（最窄 40px）、<code>sibling</code> 报 18 条挤扁 + 9 条宽度变小，
+    <code>auto</code> 全 0。<strong>断言终于咬住了。</strong>
+  </p>
+
+  <h3>6.5 S4 阈值为什么是 60%</h3>
+  <p>
+    最初定的 90% 会误报 9 条 —— 表格单元格有内边距，译文本来就只有内容区那么宽，
+    90% 的阈值把「正常的内边距」也算成了「被压扁」。降到 <b>60%</b> 之后
+    <code>auto</code> 归零，而 <code>inside</code> 在 <code>chips</code> 上的 40px（≈ 宿主 13%）依然被抓到。
+    <strong>阈值要卡在「误报」与「漏报」中间那条线上</strong>，不是越严越好。
+  </p>
+
+  <h3>6.6 2250 单元的结构不变量</h3>
+  <p>
+    在 2500 块合成页（2250 个翻译单元）上单测结构，判定标准是
+    <code>previousElementSibling</code> 有没有变：
+  </p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:34%">方式</th><th class="num-cell">相邻兄弟关系被打断</th><th class="num-cell">DOM 树完整</th></tr></thead>
+      <tbody>
+        <tr><td><b>智能分流</b> / <code>inside</code></td><td class="num-cell zero">0 / 2250</td><td class="num-cell">是</td></tr>
+        <tr><td><code>sibling</code></td><td class="num-cell nonzero">1475 / 2250</td><td class="num-cell">是</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    这是 <code>sibling</code> 作为默认值最硬的否决理由：<strong>三分之二的段落</strong>的
+    <code>p + p</code> 相邻兄弟选择器会失效。许多站点的「段落间距」正是靠 <code>p + p</code> 定义的，
+    一旦失效就是整页间距崩掉。
+  </p>
+
+  <h3>6.7 全量测试</h3>
+  <p>八套断言型测试，加一份等价性证明与三套真实浏览器基准。当前全绿：</p>
+  <pre><code>selftest.mjs            全部通过：<b>237</b> 项断言   <span class="c">（jsdom：渲染 / 检测 / 裁切 / 多语言）</span>
+test-protect.mjs        全部通过：<b>100</b> 项断言   <span class="c">（纯字符串，掩码与还原 —— 本版新增）</span>
+test-providers.mjs      全部通过： <b>54</b> 项断言   <span class="c">（46 → 54）</span>
+test-service-worker.mjs 全部通过： <b>32</b> 项断言
+test-content-scope.mjs  全部通过： 28 项断言
+test-guard.mjs          全部通过： <b>33</b> 项断言
+test-toggle.mjs         全部通过：<b>126</b> 项断言   <span class="c">（90 → 126）</span>
+test-detector-equiv.mjs → 除噪声闸门之外完全等价 ✔
+────────────────────────────────────────────────
+合计                    <b>610 项断言 + 1 份等价性证明</b></code></pre>
+  <p>
+    渲染层那一轮新增的 70 项里，包含<strong>插入点决策的每一条分支</strong>（含「硬约束优先于用户设置」
+    这一条曾经真实踩坑的规则），以及噪声过滤的 3 条源码正样本 + 4 条尖括号反例。
+  </p>
+  <p>
+    v1.5.0 新增的 144 项，集中在两处最容易「看起来没问题、实际全坏」的地方：
+    <code>test-guard.mjs</code> 把「装旧版 → 升级 → 再注入」的判定矩阵穷举成纯函数断言，
+    <code>test-toggle.mjs</code> 把控件从宿主属性、Shadow 结构、状态机、拖动吸附到位置恢复逐层钉住。
+  </p>
+  <p>
+    v1.6.0 新增的 239 项分布如下 —— 这一轮的共同特征是<strong>每一套都新增了一类「必须为 0」的断言</strong>：
+  </p>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:26%">套件</th><th class="num-cell" style="width:18%">增量</th><th>钉住的是什么</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>test-protect.mjs</code> <span class="tag keep">新</span></td>
+          <td class="num-cell">100（0 → 100）</td>
+          <td>
+            14 类片段逐一确认被摘出；精度边界（普通数字 / 句子 / <code>input/output</code> 不许被误保护）；
+            还原三条纪律；数量守恒；恒等往返；以及<strong>任何降级结果都不含私有区字符</strong>
+          </td>
+        </tr>
+        <tr>
+          <td><code>selftest.mjs</code></td>
+          <td class="num-cell">95（142 → 237）</td>
+          <td>
+            新增两节：<strong>多语言互译</strong>（54 项：语言标记、语向互换、简繁严格判据、整页闸门）
+            与<strong>裁切容器</strong>（40 项：<code>clipsContent</code> / <code>collapsesContent</code> 分开、
+            取最外层、插不进去时的降级路径）
+          </td>
+        </tr>
+        <tr>
+          <td><code>test-toggle.mjs</code></td>
+          <td class="num-cell">36（90 → 126）</td>
+          <td>
+            ⋯ 菜单常显与键盘可达、首次引导气泡（含「操作后永久不再出现」）、
+            浮层互斥（含 <code>update()</code> 这条直写通道）、动作词状态机
+          </td>
+        </tr>
+        <tr>
+          <td><code>test-providers.mjs</code></td>
+          <td class="num-cell">8（46 → 54）</td>
+          <td>
+            不再写死中文目标：中文 / 日语提示词分别断言<strong>必须出现</strong>目标语言名、
+            <strong>必须不出现</strong>其它语言名；DeepL 不支持的语向明确报错且未发出请求
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note bad">
+    <span class="t">测试抓到的真实回归（记录下来，因为它很典型）</span>
+    <p>
+      <code>sibling</code> 模式下 <code>&lt;td&gt;</code> 被插了兄弟节点 ——
+      根因是 <code>placementFor</code> 里先判 <code>mode === 'sibling'</code> 并提前 <code>return</code>，
+      <strong>绕过了 <code>shouldAppendInside</code> 这道硬约束</strong>。
+      修法是把硬约束提到读 <code>insertMode</code> <strong>之前</strong>。
+    </p>
+    <p>
+      这不是测试写错，是实现错了。<code>&lt;tr&gt;</code> 里多出一个非单元格子元素，
+      浏览器会另行生成匿名单元格 —— 表格结构真的被破坏了。
+    </p>
+  </div>
+
+  <div class="note bad">
+    <span class="t">v1.6.0 抓到的那一个：一个恒为 false 的守卫</span>
+    <p>
+      裁切分支写完、测试也写得漂亮，真机基准却报出 <code>clippedTrans = 6</code> /
+      <code>rescuedFromClip = 0</code> —— 分支<strong>一次都没生效过</strong>。
+      守卫写的是 <code>clipAnchor !== el &amp;&amp; !clipAnchor.contains(el)</code>，
+      而 <code>safeAnchor</code> 是「向上求锚点」，返回的必然是 <code>el</code> 的祖先，
+      祖先当然 <code>contains(el)</code> —— 条件恒为 false。
+    </p>
+    <p>
+      教训：<strong>「分支被覆盖到了」和「分支生效了」是两件事</strong>。
+      前者靠行覆盖率的数字就能确认，后者只能靠那个分支<strong>改变了什么可观测的量</strong>。
+      所以 <code>rescuedFromClip</code> / <code>clippedTrans</code> 这两个计数留在了基准里、每次跑都报 ——
+      它们就是这条分支的「活体检测」。
+    </p>
+  </div>
+
+  <div class="note warn">
+    <span class="t">另一条纪律：不要写自欺式断言</span>
+    <p>
+      曾写出 <code>eq('子元素个数没变', row.children.length, rowKidsBefore + 1 - 1 + 0 + 1 - 1)</code> ——
+      右侧恒等于 2，这条断言永远不会失败。正确写法是直接写期望字面量 <code>2</code>。
+      <strong>表达式的复杂度不等于断言的强度。</strong>
+    </p>
+    <p>
+      v1.6.0 写裁切测试时又踩到同一类的两个变种，都记在这里：
+    </p>
+    <ul>
+      <li>
+        <strong>用 <code>className</code> 全等去比译文块</strong> —— 译文块的类名是
+        <code>ct-trans ct-trans--out ct-s-plain</code> 这种多值串，全等必然 false。
+        应该查 <code>classList.contains('ct-trans--out')</code>。
+      </li>
+      <li>
+        <strong>沿子树找译文</strong> —— 裁切容器的译文插在容器<strong>之后</strong>，是<em>兄弟</em>关系，
+        用 <code>querySelector</code> 在容器内部找永远找不到。
+        要先断言长度再索引，否则后面一行会抛 <code>TypeError</code>，把断言失败伪装成崩溃。
+      </li>
+    </ul>
+    <p>
+      这两处的共同点：<strong>断言写错的时候，测试报的是「失败」，但失败的原因不是产品的缺陷</strong>。
+      必须回读测试本身，才能区分「产品坏了」和「判据写歪了」。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s7">
+  <h2><span class="num">SECTION 07</span>性能账：冷启动与稳定态分离</h2>
+
+  <h3>7.1 单次采样等于噪声</h3>
+  <p>
+    「读一次 <code>getComputedStyle</code> 要多花 3.5 ms」这个结论<strong>曾经被误读</strong>。
+    最初测出 <code>inside</code> 0.8 ms vs <code>auto</code> 3.5 ms，看起来像「慢了 4 倍」。
+    但单次采样里混着三件不相干的事：<strong>样式首次失效、JIT 预热、GC</strong>。
+  </p>
+  <p>
+    修正办法是<strong>同进程交替测量</strong>，并且把「冷启动一次性成本」与
+    「稳定态边际成本」分开报：
+  </p>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:30%">方式</th><th class="num-cell">采集（冷 · 两次复跑）</th><th class="num-cell">采集（温 · 两次复跑）</th><th>读数</th></tr></thead>
+      <tbody>
+        <tr><td><b>智能分流</b> <code>auto</code></td><td class="num-cell">4.7 / 3.7 ms</td><td class="num-cell">1.7 / 0.7 ms</td><td>首次读样式，付一次整页样式重算</td></tr>
+        <tr><td><code>inside</code>（不读样式）</td><td class="num-cell">1.3 / 0.8 ms</td><td class="num-cell">1.3 / 0.8 ms</td><td>基线</td></tr>
+        <tr><td><b>净成本</b></td><td class="num-cell nonzero">≈ 3.0 ms 一次性</td><td class="num-cell zero">≈ 0 ms（噪声内）</td><td><strong>稳定态不花钱</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="font-size:12.5px;color:var(--text-3)">
+    两次复跑的绝对值有波动（这台机器上 <code>collect</code> 单次抖动可以到 ±1 ms），
+    但「冷 − 温」这个<strong>差值在两次里都恰好是 3.0 ms</strong> —— 这说明波动来自环境，不是来自改动本身。
+  </p>
+
+  <div class="note ok">
+    <span class="t">为什么稳定态几乎为零</span>
+    <p>
+      因为决策<strong>缓存在 <code>WeakMap</code> 里</strong>，并且只在采集阶段读。
+      同一元素在后续轮次（已译态重扫、变更后重扫）<strong>直接命中缓存</strong>，一次 <code>getComputedStyle</code> 都不发。
+    </p>
+  </div>
+
+  <h3>7.2 2500 块合成页：两轮各自的账要分开算</h3>
+  <p>
+    性能优化是<strong>上一轮</strong>的工作，本轮只新增了「读一次样式」这一项成本。
+    混在一起讲会得出误导性的「提升」数字，因此分开列。
+  </p>
+
+  <h4>第一轮（任务 #8–#12）：热路径优化，收成是实打实的</h4>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:32%">阶段</th><th class="num-cell">优化前</th><th class="num-cell">优化后</th><th class="num-cell">降幅</th></tr></thead>
+      <tbody>
+        <tr><td>首屏采集</td><td class="num-cell">43.6 ms</td><td class="num-cell">21.9 ms</td><td class="num-cell zero">−50%</td></tr>
+        <tr><td>已译态重扫</td><td class="num-cell">43.4 ms</td><td class="num-cell">23.8 ms</td><td class="num-cell zero">−45%</td></tr>
+        <tr><td>变更后整页重扫</td><td class="num-cell">42.2 ms</td><td class="num-cell">20.6 ms</td><td class="num-cell zero">−51%</td></tr>
+        <tr><td>可译性判定</td><td class="num-cell">19.1 ms</td><td class="num-cell">3.5 ms</td><td class="num-cell zero">−82%</td></tr>
+        <tr><td>语种判定</td><td class="num-cell">15.2 ms</td><td class="num-cell">8.9 ms</td><td class="num-cell zero">−41%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h4>第二轮（本轮 1.3.0）：只新增「读一次 computed style」</h4>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:32%">阶段</th><th class="num-cell">第一轮结束</th><th class="num-cell">本轮复测（两次）</th><th class="num-cell">读数</th></tr></thead>
+      <tbody>
+        <tr><td>首屏采集</td><td class="num-cell">21.9 ms</td><td class="num-cell">23.4 / 23.1 ms</td><td>±1.2 ms，落在噪声带内</td></tr>
+        <tr><td>已译态重扫</td><td class="num-cell">23.8 ms</td><td class="num-cell">22.1 / 21.1 ms</td><td class="num-cell zero">略优</td></tr>
+        <tr><td>变更后整页重扫</td><td class="num-cell">20.6 ms</td><td class="num-cell">19.6 / 20.1 ms</td><td class="num-cell zero">略优</td></tr>
+        <tr><td>写字号变量（2250 单元）</td><td class="num-cell">0.4 ms</td><td class="num-cell">0.5 / 1.0 ms</td><td>两次 <code>setProperty</code> 的净成本</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note warn">
+    <span class="t">关于这台机器上的测量噪声 —— 不掩盖</span>
+    <p>
+      同一次运行里 <code>collect_cold</code> 的 <code>max</code> 达到 <b>61–66 ms</b>，
+      而 <code>min</code> 是 <b>23.1–23.4 ms</b>。也就是说<strong>运行内的抖动比本轮改动引入的差异还大</strong>。
+      因此：
+    </p>
+    <ul style="margin:6px 0 0">
+      <li>不用单次数字宣称「提速 / 变慢」；只报<strong>两次独立复跑的区间</strong>并对照第一轮的基线。</li>
+      <li>真正可控的对照放在布局基准里做：<strong>同进程交替测量</strong> <code>auto</code> 与 <code>inside</code>（§7.1），
+      把「一次性成本」与「边际成本」分开，这才是可比较的口径。</li>
+      <li>原始数据全部留存在 <code>tools/bench-results/</code>，可自行复跑核对。</li>
+    </ul>
+  </div>
+
+  <h3>7.3 本轮改动没有引入功能回归</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:40%">检查项</th><th>结论</th></tr></thead>
+      <tbody>
+        <tr><td>结构不变量（智能分流）</td><td class="zero">0 / 2250 处相邻兄弟关系被打断</td></tr>
+        <tr><td>结构不变量（强制 sibling）</td><td>1475 / 2250 —— 印证了为什么它不能做默认</td></tr>
+        <tr><td><code>restoreClean</code>（还原后无残留）</td><td>三种方式全部 <code>true</code>，两次复跑一致</td></tr>
+        <tr><td>译文块数量</td><td>2500 块页面仍是 2250 个单元，与第一轮一致（插入点变了，<strong>覆盖率没变</strong>）</td></tr>
+        <tr><td>字号落点</td><td><code>&lt;p&gt;</code> 下 12.8 px（= 80%），与设计值一致</td></tr>
+        <tr><td>全量测试</td><td>610 项断言 + 等价性证明全部通过</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s8">
+  <h2><span class="num">SECTION 08</span>取舍清单与已知边界</h2>
+
+  <h3>8.1 明确做过的取舍</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:22%">取舍点</th><th style="width:24%">选择了</th><th style="width:22%">放弃了</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>插入点策略</td>
+          <td>按 computed <code>display</code> 分流</td>
+          <td>单一全局规则</td>
+          <td>两种全局策略各有约一半场景是错的，没有「一条规则通吃」的解</td>
+        </tr>
+        <tr>
+          <td>译文默认样式</td>
+          <td>素净（零装饰）</td>
+          <td>「译」标记 + 色条</td>
+          <td>装饰本身就是对页面的改动，且逐段重复几百次</td>
+        </tr>
+        <tr>
+          <td>可换行弹性容器</td>
+          <td>留在容器内、独占整行</td>
+          <td>挂到容器外</td>
+          <td>新项能自己换行时不挤占原有子项，留在内部还能保住归属关系与 <code>:nth-child</code></td>
+        </tr>
+        <tr>
+          <td>挂到外面的锚点</td>
+          <td>最多上溯 4 层</td>
+          <td>无限上溯到「绝对安全」的祖先</td>
+          <td>译文离原文越远归属感越弱，宁可就地退化</td>
+        </tr>
+        <tr>
+          <td>S4 阈值</td>
+          <td>60%</td>
+          <td>90%（更严）</td>
+          <td>90% 会把表格单元格的正常内边距误报成「被压扁」</td>
+        </tr>
+        <tr>
+          <td>噪声文本</td>
+          <td>直接不翻</td>
+          <td>翻出来（技术上有能力翻）</td>
+          <td>翻译无意义 + 体积巨大，是机制 ④ 的根源。这是产品决策，已在等价性测试里精确隔离</td>
+        </tr>
+        <tr>
+          <td>阅读形态</td>
+          <td>保留「原文下方双语」</td>
+          <td>为了「绝对不变高」改成悬停或替换</td>
+          <td>下方双语是产品主形态，段落自身变高无法避免；因此如实上报为 <code>hAll</code> / <code>hForeign</code>，不混进判据</td>
+        </tr>
+        <tr>
+          <td>裁切容器里的译文</td>
+          <td>把译文<strong>挪到容器之外</strong></td>
+          <td>给容器或译文加 <code>-webkit-line-clamp:unset</code> 之类的覆盖样式</td>
+          <td>覆盖样式等于<strong>改站点自己的 CSS</strong>，而容器上还挂着站点的折叠逻辑与「展开全文」按钮，一动就跟着坏。挪出去只<b>增加</b>自己的节点，不动既有元素（§3.6）</td>
+        </tr>
+        <tr>
+          <td>零高度折叠区</td>
+          <td>整个单元<strong>不翻</strong></td>
+          <td>和普通裁切容器一样挪到容器之后</td>
+          <td>折叠区里的内容是用户<strong>主动选择不看</strong>的。合并这两条会让页面每个收起的折叠块旁边都凭空多一段译文（§3.6）</td>
+        </tr>
+        <tr>
+          <td>不可译片段</td>
+          <td>摘成私有区占位符，返回后还原</td>
+          <td>写进提示词让引擎「不要翻译 URL 和代码」</td>
+          <td>提示词是<strong>请求</strong>，占位符是<strong>保证</strong>。把 URL 交给任何机器翻译都是不可控的，而私有区码位不属于任何字符集，引擎连改写它的动机都没有（§5.6）</td>
+        </tr>
+        <tr>
+          <td>数量不守恒的译文</td>
+          <td>判为不可信，<strong>不写进缓存</strong></td>
+          <td>照常缓存，下次直接复用</td>
+          <td>占位符数量对不上说明引擎合并/拆分了条目，还原会把片段安到错位置。缓存的前提正是<strong>「这次结果可信」</strong>，这里前提不成立（§5.6）</td>
+        </tr>
+        <tr>
+          <td>简繁判定</td>
+          <td><strong>算两种语言</strong>（严格口径）</td>
+          <td>都是中文，算同一种</td>
+          <td>算同一种会让整页闸门误判「已经是目标语言」，简体页面配繁体目标时<strong>直接不翻</strong>（§5.5）</td>
+        </tr>
+        <tr>
+          <td>首次引导</td>
+          <td>一次性气泡，操作后永久消失</td>
+          <td>常驻提示，或不提示</td>
+          <td>不提示则控件等于不存在；常驻则变成用户每天要手动关掉的东西。判断标准是「第二次看还值不值」，不是「重不重要」（§4.6）</td>
+        </tr>
+        <tr>
+          <td>用户 <code>insertMode</code> 的优先级</td>
+          <td>低于裁切闸门</td>
+          <td>高于一切（真正的「完全照办」）</td>
+          <td>用户设「内部追加」是为了<strong>对照排障</strong>，而被裁掉的是译文本身 —— 看不到东西就谈不上对照。取舍点在于「排障工具的确定性」与「用户能看到译文」之间后者更硬</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>8.2 已知边界</h3>
+  <ul>
+    <li>
+      <strong>段落自身变高无法避免。</strong>这是「下方双语」这个形态的固有代价 ——
+      承载译文的元素变高是设计要求的，不是 bug。要彻底不变高只能换成「仅显示译文」或「悬停查看」。
+    </li>
+    <li>
+      <strong>站点级特殊布局仍可能有例外。</strong>夹具覆盖了 13 类典型宿主 / 39 个夹具，
+      不等于覆盖了所有真实站点。判据的价值在于：<strong>出问题时能定位到是哪一条</strong>，
+      而不是靠肉眼判断。
+    </li>
+    <li>
+      <strong>冷启动固定付约 3 ms。</strong>首次进入页面时读一次样式需要一次整页样式重算。
+      这是在 2500 块页面上测的，小页面基本感知不到。
+      另外 <code>clipInfo()</code> 的祖先上溯（最多 6 层）<strong>不进 <code>WeakMap</code> 缓存</strong> ——
+      裁切状态会随站点交互变化，缓存会让「展开全文之后再翻」拿到过期结论。这是用一点重复遍历换正确性。
+    </li>
+    <li>
+      <strong>闸门是启发式。</strong>阈值（标签占比 20%、标签数 3、长度 24、<code>":</code> 计数 4）
+      是经验值，可能对极端文本误判。闸门只影响「翻不翻」，不会破坏页面结构，
+      因此误判的代价是可控的。
+    </li>
+    <li>
+      <strong>掩码表只覆盖可枚举的模式。</strong>14 类片段靠正则识别，认不出来的「专有名词」需要用户
+      自己加进术语表。术语表本身是逐条字符串替换，<strong>不做词形变化</strong> ——
+      英文里 <code>Widgets</code> 与 <code>Widget</code> 是两个不同的匹配目标，
+      需要用户各写一行（或者接受后者匹配到前者前缀，再靠右边界约束）。这一点在设置页里有说明文案。
+    </li>
+    <li>
+      <strong>裁切判定只认「自己会不会被裁」，不预测站点行为。</strong>
+      <code>clipsContent</code> 读的是<strong>当下</strong>的 computed style。
+      如果站点用 JS 在滚动时动态加 <code>max-height</code>，第一次采集时判定不到，
+      译文会留在容器里。要覆盖这种情况需要 <code>MutationObserver</code> 持续跟踪样式变化，
+      成本远大于收益（会引入持续的重判循环）。
+    </li>
+    <li>
+      <strong><code>sibling</code> 强制模式保留但不应作为默认。</strong>
+      它会让 1475 / 2250 个单元的相邻兄弟关系失效。它存在的意义是排障对照。
+    </li>
+  </ul>
+</section>
+
+<!-- ══════════════════════════════════════════════════ -->
+<section id="s9">
+  <h2><span class="num">SECTION 09</span>交付清单与复现</h2>
+
+  <h3>9.1 本轮改动的文件</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:30%">文件</th><th>改动要点</th></tr></thead>
+      <tbody>
+        <tr><td><code>content/renderer.js</code></td><td>新增插入点决策整节（<code>INLINE_LEVEL</code> / <code>layoutOf</code> / <code>safeAnchor</code> / <code>placementFor</code>），替换原 <code>shouldInsertInside</code>；三条分支产出不同节点类型与类名；registry 记录增加 <code>placement</code></td></tr>
+        <tr><td><code>content/detector.js</code></td><td>新增 <code>looksLikeMarkup</code> / <code>looksLikeDataBlob</code> 两道噪声闸门，插在语言判定之前</td></tr>
+        <tr><td><code>content/content.css</code></td><td><code>.ct-trans</code> 拆为「结构层 + 样式修饰层」；新增 <code>--in</code> / <code>--inl</code> / <code>--out</code> / <code>--wrap</code> 四个结构修饰类；深色模式只保留 accent 覆盖</td></tr>
+        <tr><td><code>content/content.js</code></td><td>决策随单元对象透传（<code>wave[k].plan</code>）；<code>modeChanged</code> 增加 <code>transStyle</code> 比较</td></tr>
+        <tr><td><code>shared/constants.js</code></td><td>默认 <code>fontSizeScale: 0.80</code>、<code>insertMode: 'auto'</code>、<code>transStyle: 'plain'</code>；新增 <code>CT.TRANS_STYLES</code>；<code>CT.INSERT_MODES</code> 改三选项</td></tr>
+        <tr><td><code>options/options.html · .js</code></td><td>字号滑块下限 <code>0.75 → 0.6</code>；新增「译文样式」下拉与提示文案；插入方式提示重写为三项</td></tr>
+        <tr><td><code>tools/bench-layout.html</code> <span class="tag keep">新增</span></td><td>10 类宿主夹具 × 3 次，几何 + 结构 + 译文挤扁统计，四轮脱离一次性成本</td></tr>
+        <tr><td><code>tools/bench-layout.sh</code> <span class="tag keep">新增</span></td><td>真实 Chrome 运行器（jsdom 取不到几何量）</td></tr>
+        <tr><td><code>tools/selftest.mjs</code></td><td>65 → <b>135</b> 项：新增 5c 插入点决策节（10 条分支 + 4 条强制值 + 渲染形态）、5d 噪声过滤节</td></tr>
+        <tr><td><code>tools/test-detector-equiv.mjs</code></td><td>新增噪声靶子与反例；差异统计拆成三类；退出码条件加上 <code>vBad === 0 &amp;&amp; vReverse === 0</code></td></tr>
+        <tr><td><code>tools/bench.html</code></td><td>字号探针改为读 <code>CT.DEFAULT_SETTINGS.fontSizeScale</code>，不再硬编码</td></tr>
+        <tr><td><code>README.md</code> · <code>package.json</code> · <code>manifest.json</code></td><td>版本 <code>1.2.0 → 1.3.0</code>；新增 <code>bench:layout</code> 脚本；文档同步插入点/字号/判据/等价性统计</td></tr>
+        <tr><td colspan="2" class="c">── 以下为 v1.5.0（页内开关 + 注入生命周期）追加，属同一份设计约束的下游 ──</td></tr>
+        <tr><td><code>content/toggle.js</code> <span class="tag keep">新增</span></td><td>Shadow DOM 页内开关；宿主双标记 <code>data-ct-skip="widget"</code> + <code>translate="no"</code> 防自噬；行内 <code>!important</code> 加固定位属性；<code>avoidClash()</code> 用 <code>elementFromPoint</code> 避让站点浮层；窄屏收至 36×36</td></tr>
+        <tr><td><code>content/guard.js</code> <span class="tag keep">新增</span></td><td>「版本号 + 存活探测」注入守卫纯函数；<code>decide()</code> 产出 <code>skip</code>/<code>takeover</code>/<code>fresh</code>；孤儿清理<strong>刻意不含</strong> <code>.ct-trans</code></td></tr>
+        <tr><td><code>content/content.js</code></td><td>顶部守卫换成 <code>CT.guard</code>；新增 <code>teardown()</code> 退场钩子；<code>applySettings</code> 拆内外两层（<code>try/finally</code> 统一 <code>syncToggle()</code>）；<code>isOwnNode()</code> 白名单加入控件类名</td></tr>
+        <tr><td><code>background/service-worker.js</code></td><td>抽出 <code>CONTENT_FILES</code> / <code>CONTENT_CSS</code>；新增 <code>reinjectAllTabs()</code>（跳过 <code>status !== 'complete'</code>，并发 4）；<code>onInstalled</code> 主动补注入</td></tr>
+        <tr><td><code>shared/constants.js</code></td><td>新增 <code>TOGGLE_CLASS</code> 与 <code>CT.STORAGE.TOGGLE_UI</code> / <code>SITE_STATE</code> —— <strong>刻意不进 settings</strong>，否则拖一下开关就触发全页重扫</td></tr>
+        <tr><td><code>tools/test-guard.mjs</code> · <code>tools/test-toggle.mjs</code> <span class="tag keep">新增</span></td><td>33 + 90 项断言；无需浏览器即可跑，已并入 <code>npm test</code></td></tr>
+        <tr><td><code>tools/bench-toggle.html</code> · <code>bench-toggle.sh</code> · <code>bench-results/toggle-budget.json</code> <span class="tag keep">新增</span></td><td>控件性能预算基准（G9）：mount ≤ 5 ms、update ≤ 1 ms、五项布局差分全 0</td></tr>
+        <tr><td><code>README.md</code> · <code>package.json</code> · <code>manifest.json</code></td><td>版本 <code>1.4.0 → 1.5.0</code>；<code>test</code> 串跑 7 套；新增 <code>test:guard</code> / <code>test:toggle</code> / <code>bench:toggle</code></td></tr>
+        <tr><td colspan="2" class="c">── 以下为 v1.6.0（裁切容器 + 多语言互译 + 译文准确性 + 开关语义），四条用户反馈直接带来 ──</td></tr>
+        <tr>
+          <td><code>shared/protect.js</code> <span class="tag keep">新增</span></td>
+          <td>
+            不可译片段掩码（URL / 邮箱 / 模板占位符 / 格式符 / 版本号 / 颜色 / 长哈希 / 多段路径 / 文件名 / 常量名 / 驼峰 / 下划线名，共 14 类）；
+            私有区哨兵 <code>U+E000</code> + 36 进制编号 + <code>U+E001</code>；
+            <code>mask</code> / <code>restore</code> / <code>countMasks</code> / <code>maskAll</code> / <code>restoreAll</code> / <code>sortTerms</code>；
+            术语表与掩码共用一条链
+          </td>
+        </tr>
+        <tr>
+          <td><code>content/renderer.js</code></td>
+          <td>
+            新增 <code>clipsContent</code> / <code>collapsesContent</code> / <code>clipInfo</code>（上溯 6 层、取最外层、不缓存）与
+            <code>canInsertAfter</code>（判据是「插不插得进去」）；<code>placementFor</code> 新增折叠区与裁切两个分支，
+            <code>after</code> 带 <code>reason:'flex-row'|'clipped'</code>；<code>stats.rescuedFromClip</code>；
+            <code>insertAfter</code> 跳过后随的 <code>.ct-trans</code>（修同一锚点多处插入时的顺序颠倒）
+          </td>
+        </tr>
+        <tr>
+          <td><code>shared/constants.js</code></td>
+          <td>
+            语言表下沉为 <code>CT.LANGS</code>（41 种，带 <code>mark</code>）+ <code>SOURCE_LANGS</code> / <code>TARGET_LANGS</code> /
+            <code>langLabel</code> / <code>langMark</code> / <code>langShort</code>；
+            <code>VARIANT_PAIRS</code>（120 对）与 <code>scriptVariant</code> / <code>targetVariant</code> /
+            <code>isSameLanguageStrict</code> / <code>needsPageTranslation</code>；
+            新增 <code>toggleGuideDone</code> / <code>glossary</code> / <code>protectUntranslatable</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>background/providers.js</code> · <code>service-worker.js</code></td>
+          <td>
+            提示词语言名改按目标语言动态生成（<code>LANG_PROMPT_NAME</code> 41 条 + <code>promptLangName</code>）；
+            DeepL 源/目标映射补齐，<strong>不支持的语向明确报错</strong>；
+            服务层接入掩码链并做<strong>数量守恒校验</strong>，不守恒的条目不写缓存（返回体新增 <code>uncached</code>）
+          </td>
+        </tr>
+        <tr>
+          <td><code>content/toggle.js</code> · <code>content/content.css</code></td>
+          <td>
+            状态词改动作词（<code>翻译此页</code> / <code>显示原文</code>）；工具区常显 + ⋯ 菜单；图标改<strong>目标语言标记</strong>；
+            一次性引导气泡；<code>closeOverlays(except)</code> 三层浮层互斥（含 <code>update()</code> 直写通道）
+          </td>
+        </tr>
+        <tr>
+          <td><code>popup/</code> · <code>options/</code></td>
+          <td>
+            语向栏（<code>.langpair</code> = 源 / ⇄ / 目标）两界面共用；弹窗宽度 <code>328 → 360 px</code>；
+            设置页重组为三个 <code>&lt;details class="group"&gt;</code>（7 张卡片，第三组默认收起）；
+            新增「译文准确性」卡片（术语表 textarea + 占位符保护开关）
+          </td>
+        </tr>
+        <tr>
+          <td><code>tools/test-protect.mjs</code> <span class="tag keep">新增</span></td>
+          <td>100 项纯字符串断言；含<strong>反证式</strong>断言（还原正则写宽就报红）</td>
+        </tr>
+        <tr>
+          <td><code>tools/selftest.mjs</code> · <code>test-providers.mjs</code> · <code>test-toggle.mjs</code></td>
+          <td>142 → <b>237</b>（新增多语言 54 项 + 裁切 40 项）；46 → <b>54</b>；90 → <b>126</b></td>
+        </tr>
+        <tr>
+          <td><code>tools/bench-layout.html</code></td>
+          <td>
+            新增 <code>clamp</code> / <code>maxh</code> / <code>collapsed</code> 三组夹具（30 → <b>39</b> 夹具 / 183 → <b>210</b> 元素）；
+            判据扩到 <b>S5</b>；新增 <code>clippedTrans</code> / <code>collapsedTrans</code> / <code>rescuedFromClip</code> 与裁切专项报告块
+          </td>
+        </tr>
+        <tr><td><code>README.md</code> · <code>package.json</code> · <code>manifest.json</code></td><td>版本 <code>1.5.0 → 1.6.0</code>；名称与描述去掉「译成中文」限定；<code>test</code> 串跑 8 套；新增 <code>test:protect</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>9.2 复现命令</h3>
+<pre><code><span class="c"># 全量测试（610 项断言 + 等价性证明）</span>
+cd bilingual-translator-ext
+npm test
+
+<span class="c"># 单跑：机制层</span>
+npm run test:dom          <span class="c"># jsdom，237 项，验证分支/类名/裁切/多语言</span>
+npm run test:guard        <span class="c"># jsdom，33 项，装旧版→升级→再注入的判定矩阵</span>
+npm run test:toggle       <span class="c"># jsdom，126 项，页内开关宿主/结构/状态机/菜单/引导/拖动</span>
+
+<span class="c"># 单跑：字符串层（不需要 jsdom，最快的一套）</span>
+npm run test:protect      <span class="c"># 100 项，不可译片段的摘出与还原</span>
+
+<span class="c"># 结果层：真实 Chrome，布局保真基准（39 夹具 / 210 元素 / 四种跑法）</span>
+npm run bench:layout
+<span class="c"># → 产物写入 tools/bench-results/layout.json</span>
+<span class="c"># → 期望：auto=auto_warm=PASS，inside=FAIL，sibling=FAIL</span>
+<span class="c"># → 裁切专项：clippedTrans=0、collapsedTrans=0、rescuedFromClip=6</span>
+
+<span class="c"># 不变性层</span>
+npm run test:equiv
+
+<span class="c"># 性能基准（真实 Chrome，2500 块合成页）</span>
+bash tools/bench.sh 2500 tools/bench-results/structure-2500.json
+
+<span class="c"># 设计令牌合规（间距/圆角/字号三项均应为 0）</span>
+npm run check:tokens</code></pre>
+
+  <h3>9.3 判定标准（一眼看结论）</h3>
+  <div class="tbl">
+    <table>
+      <thead><tr><th style="width:34%">字段</th><th style="width:16%">期望</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><code>verdict</code></td><td><span class="tag pass">PASS</span></td><td>五条判据全过</td></tr>
+        <tr><td><code>structOk</code></td><td><code>true</code></td><td>S1 结构未变</td></tr>
+        <tr><td><code>wShrunk</code></td><td class="zero">0</td><td>S2 没有任何非译文元素宽度变小</td></tr>
+        <tr><td><code>hInline</code></td><td class="zero">0</td><td>S3 没有任何内联宿主高度变化</td></tr>
+        <tr><td><code>trans.squeezed</code></td><td class="zero">0</td><td>S4 没有译文被压扁</td></tr>
+        <tr><td><code>clippedTrans</code></td><td class="zero">0</td><td>S5 没有译文留在裁切子树里（<b>v1.6.0</b>）</td></tr>
+        <tr><td><code>collapsedTrans</code></td><td class="zero">0</td><td>S5 零高度折叠区里没有译文（<b>v1.6.0</b>）</td></tr>
+        <tr><td><code>rescuedFromClip</code></td><td class="zero">6</td><td>S5 这条分支<strong>确实生效了</strong>的活体检测 —— 为 0 说明分支没跑（<b>v1.6.0</b>）</td></tr>
+        <tr><td><code>transInMarkup</code> / <code>transInJsonld</code></td><td class="zero">0</td><td>噪声夹具里没有译文</td></tr>
+        <tr><td><code>restoreClean</code></td><td><code>true</code></td><td>还原后页面上无任何残留</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="t">这张表就是「验收单」</span>
+    <p>
+      任何人拿到这份文档，都可以跑一条命令、对一遍这张表，独立确认「页面不会变形」这句话是否成立 ——
+      <strong>不需要相信文档的结论，只需要相信命令的输出。</strong>
+    </p>
+  </div>
+</section>
+
+<footer class="doc">
+  双语助手 v1.6.0 · 布局保全设计说明 ·
+  断言数 <code>237 + 100 + 54 + 32 + 28 + 33 + 126 = 610</code> ·
+  布局基准 <code>39 夹具 / 210 元素</code> ·
+  等价性 <code>194559 码元 / 5188 条判定</code> ·
+  数据留存于 <code>tools/bench-results/</code>
+</footer>
+
+</div>
+</body>
+</html>
