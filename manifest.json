@@ -1,0 +1,102 @@
+{
+  "manifest_version": 3,
+  "name": "叠译 · 网页双语对照翻译",
+  "short_name": "叠译",
+  "version": "1.8.0",
+  "description": "自动识别网页语言，在原文下方以双语形式显示译文，支持 41 种语言任意互译。优先使用 Chrome 内置本地翻译模型，可降级到 Google / DeepL / OpenAI 兼容接口。",
+  "minimum_chrome_version": "116",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "contextMenus",
+    "declarativeNetRequest"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "https://translate.googleapis.com/*",
+    "https://api-free.deepl.com/*",
+    "https://api.deepl.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*",
+        "file:///*"
+      ],
+      "js": [
+        "shared/constants.js",
+        "shared/terminology.js",
+        "shared/scene.js",
+        "content/guard.js",
+        "content/frame-gate.js",
+        "content/layers.js",
+        "content/keymap.js",
+        "content/shadow-walk.js",
+        "content/selection.js",
+        "content/detector.js",
+        "content/renderer.js",
+        "content/toggle.js",
+        "content/content.js"
+      ],
+      "css": [
+        "content/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": false,
+      "match_origin_as_fallback": false
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "叠译 · 点此开关翻译",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "commands": {
+    "toggle-translate": {
+      "suggested_key": {
+        "default": "Alt+Shift+T"
+      },
+      "description": "开启 / 关闭当前页面翻译"
+    },
+    "toggle-mode": {
+      "suggested_key": {
+        "default": "Alt+Shift+Y"
+      },
+      "description": "切换显示模式（原文下方双语 / 仅显示译文 / 悬停）"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*",
+        "content/content.css",
+        "pdf/viewer.html",
+        "pdf/viewer.js",
+        "pdf/viewer.css",
+        "pdf/vendor/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}

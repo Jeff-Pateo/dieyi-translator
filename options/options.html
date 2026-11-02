@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>叠译 · 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <img src="../icons/icon48.png" alt="" class="top__logo">
+      <div>
+        <h1>叠译 · 设置</h1>
+        <p class="top__sub">自动识别网页语言，在原文下方并列显示译文。支持 41 种语言任意互译。设置修改后立即生效，无需重新加载页面。</p>
+      </div>
+    </header>
+
+    <!-- Z1（v1.7.9 C-59）：首屏零术语——安装横幅不再解释「模型」「降级」，
+         一句话告诉小白「打开网页就有译文，什么都不用设」。技术细节移到「高级设置」内。 -->
+    <div class="banner" id="welcome" hidden>
+      <strong>安装完成，可以用了。</strong>
+      打开任意英文网页，中文对照会自动出现在原文下方 —— 不需要设置任何东西。
+    </div>
+
+
+    <!-- ==================== 分组：常用设置（小白路径，零 AI 术语） ==================== -->
+    <details class="group" open>
+      <summary class="group__hd">
+        <span class="group__t">常用设置</span>
+        <span class="group__d">语向、显示方式，以及页面里那个常驻开关</span>
+      </summary>
+
+      <!-- ============================ 翻译行为 ============================
+           D-B2-02 裁定（2026-10-13）：常用区首位必须是核心总开关（#enabled 在此卡内），
+           故「翻译行为」置于「我的词典」之前；覆盖 UX §2「我的词典＝第一张卡」的字面落位。 -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>翻译行为</h2>
+          <p class="card__sub">控制「翻什么」与「怎么显示」。</p>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="displayMode">显示方式</label>
+          <div class="row__v">
+            <select id="displayMode" data-setting="displayMode" class="select"></select>
+            <p class="hint">
+              「原文下方双语」保留原排版，把译文追加到每个段落下，适合精读；
+              「仅显示译文」会把段落内容整体替换（原文可一键还原，但行内链接会丢失）；
+              「悬停查看」保持页面最干净，鼠标移到段落上才浮出译文。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">翻译方向</span>
+          <div class="row__v">
+            <div class="langpair">
+              <select id="sourceLang" data-setting="sourceLang" class="select select--pair" aria-label="源语言"></select>
+              <button type="button" class="swap" id="btnSwapLang"
+                      title="互换源语言与目标语言" aria-label="互换源语言与目标语言">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path fill="currentColor" d="M4.2 2.2 1.6 4.8l2.6 2.6.9-.9-1.1-1.1h8.3V4.1H4l1.1-1.1zM11.8 6.9l-.9.9 1.1 1.1H3.9v1.3h8.1l-1.1 1.1.9.9 2.6-2.6z"/>
+                </svg>
+              </button>
+              <select id="targetLang" data-setting="targetLang" class="select select--pair" aria-label="目标语言"></select>
+            </div>
+            <p class="hint">
+              源语言保持「自动检测」即可。仅在检测结果明显不对（例如把日文判成中文）时才手动指定。
+              两侧都选定后，点中间的 <strong>⇄</strong> 可把翻译方向反过来（例如由「英 → 中」变成「中 → 英」）。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">开关</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="enabled" data-setting="enabled">
+              <span>启用扩展</span>
+            </label>
+            <label class="check">
+              <input type="checkbox" id="autoTranslate" data-setting="autoTranslate">
+              <span>打开页面后自动翻译（关闭后需手动点击「立即翻译」）</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="fontSizeScale">译文字号</label>
+          <div class="row__v">
+            <div class="inline">
+              <input type="range" id="fontSizeScale" data-setting="fontSizeScale" min="0.6" max="1.15" step="0.05" class="range">
+              <span class="pill pill--mono" id="fontSizeVal">–</span>
+            </div>
+            <p class="hint">
+              相对于原文单元的字号比例，默认 80%。该比例会再以「页面正文字号」封顶，
+              因此标题下方的译文不会跟着标题一起放大，整页译文大小保持一致。
+              拖动即时生效，不会重新翻译。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="insertMode">译文插入方式</label>
+          <div class="row__v">
+            <select id="insertMode" data-setting="insertMode" class="select"></select>
+            <p class="hint" id="insertModeHint">–</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="transStyle">译文样式</label>
+          <div class="row__v">
+            <select id="transStyle" data-setting="transStyle" class="select"></select>
+            <p class="hint" id="transStyleHint">–</p>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- ============================ 我的词典（C-63 · B2-1 · D3 双入口） ============================
+           常用区第一张卡：settings.glossary 为唯一真源。
+           条目级增删改与「进阶编辑（批量）」共用同一 SET_SETTINGS{patch:{glossary}} 写入通道，
+           写前统一过 auditGlossary（errors 空）。
+           来源标签 v1 不落字段（parseGlossary/formatGlossary 严格往返会剥掉未知字段），仅留视觉位。 -->
+      <section class="card" id="cardMyDict">
+        <div class="card__hd">
+          <h2>我的词典</h2>
+          <!-- U5（D-B2-01 §4.6 逐字定稿）：副标题与下方提示行按定稿逐字落地。
+               事实依据：settings.glossary 落 chrome.storage.sync，会随 Chrome 账号同步出机，
+               故不得再作"仅存本机"类表述，改以"不经本产品服务器 + 同步披露"如实说明。 -->
+          <p class="card__sub">这里是你攒下来的词——页面上修正过的，也会自动收进来。不经过我们的服务器，也不与其他用户共享。</p>
+        </div>
+
+        <p class="hint">登录 Chrome 时，它可能随你的账号同步到你自己的设备；关闭 Chrome 同步则仅保留在本机。</p>
+
+        <ul class="dict-list" id="dictList" role="list"></ul>
+        <span class="sr-only" id="dictLive" role="status" aria-live="polite"></span>
+
+        <div class="inline inline--mt">
+          <button type="button" class="btn btn--sm" id="btnDictAdd">+ 自己加一条</button>
+        </div>
+        <div class="inline inline--mt" id="dictAddRow" hidden>
+          <input type="text" id="dictNewFrom" class="input input--narrow" placeholder="原文（页面上的写法）" aria-label="原文">
+          <span class="inline__label" aria-hidden="true">→</span>
+          <input type="text" id="dictNewTo" class="input input--narrow" placeholder="译名（留空 = 保持原文不译）" aria-label="译名">
+          <button type="button" class="btn btn--primary btn--sm" id="btnDictAddSave">添加</button>
+          <button type="button" class="btn btn--sm" id="btnDictAddCancel">取消</button>
+        </div>
+
+        <p class="hint">术语表的批量编辑在下方『进阶编辑（批量）』。</p>
+
+        <details class="dict-adv" id="dictAdv">
+          <summary class="group__hd">
+            <span class="group__t">进阶编辑（批量）</span>
+          </summary>
+          <div class="dict-adv__body">
+            <label class="dict-adv__label" for="glossary">术语表</label>
+            <textarea id="glossary" class="textarea" rows="6"
+              placeholder="每行一条，用 = 分隔：&#10;Prompt = 提示词&#10;Function Calling = 函数调用&#10;Kubernetes =&#10;# 以 # 开头的行是注释"></textarea>
+            <p class="hint">
+              左侧是原文中的写法，右侧是你希望得到的译名。<strong>右侧留空</strong>表示该词保持原文不翻译
+              （适合 <code>Kubernetes</code>、<code>OAuth</code> 这类不宜意译的专有名词）。
+              <strong>这里的条目优先于内置术语基座</strong> —— 写了同名的词，以你写的为准。
+              含拉丁字母的词按整词匹配、<strong>不区分大小写</strong>（<code>Prompt</code> 也会命中
+              <code>PROMPT</code>，但不会命中 <code>Promptly</code>）；较长的条目优先命中。
+              <br>
+              保存后即刻生效：术语集参与翻译缓存键，所以变更后受影响的句子会自动重译，
+              不必手动清缓存。
+            </p>
+
+            <div class="inline inline--mt">
+              <button type="button" class="btn btn--sm" id="btnGlossarySave">保存批量修改</button>
+            </div>
+
+            <!-- 覆盖确认条（非模态行内）：保存前 diff 校验，禁止静默丢条目 -->
+            <div class="dict-confirm" id="dictConfirm" hidden role="alert">
+              <p class="dict-confirm__t" id="dictConfirmText"></p>
+              <div class="inline">
+                <button type="button" class="btn btn--danger btn--sm" id="btnDictConfirmApply">确认覆盖</button>
+                <button type="button" class="btn btn--sm" id="btnDictConfirmCancel">取消</button>
+              </div>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <!-- ============================ 翻译方式（C-65 · B2-3） ============================
+           引擎档位显式二选一。单一数据源 = settings.provider，与高级区 #provider 双向绑定同一字段。
+           显示态（B-方⑦，只读不写库）：chrome-builtin→更私密；google-free→更准确；
+           auto→更私密；deepl/openai→更准确态（不改写）。写值只在用户点击二选一时发生。 -->
+      <section class="card" id="cardEngineChoice">
+        <div class="card__hd">
+          <h2>翻译方式</h2>
+          <p class="card__sub">一句话选好，随时可以换。</p>
+        </div>
+
+        <div class="seg" id="engineChoice" role="radiogroup" aria-label="翻译方式">
+          <label class="seg__opt">
+            <input type="radio" name="engineChoice" value="chrome-builtin" checked>
+            <span class="seg__t">更私密</span>
+            <span class="seg__d">优先用浏览器内置翻译（本机处理）</span>
+          </label>
+          <label class="seg__opt">
+            <input type="radio" name="engineChoice" value="google-free">
+            <span class="seg__t">更准确</span>
+            <span class="seg__d">改用联网翻译，结果通常更准</span>
+          </label>
+        </div>
+        <p class="hint">更私密会优先在本机处理；更准确会改用联网翻译，通常更准。随时可以切换。</p>
+      </section>
+
+      <!-- ============================ 划词翻译 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>划词翻译</h2>
+          <p class="card__sub">
+            选中一段文字，就地弹出译文。适合「只想知道这一句什么意思」的场景 ——
+            不必把整页先翻一遍。
+          </p>
+        </div>
+
+        <div class="row">
+          <span class="row__k">开关</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="selectionEnabled" data-setting="selectionEnabled">
+              <span>启用划词翻译</span>
+            </label>
+            <p class="hint">
+              划词与整页翻译走<strong>同一条翻译通道</strong>，因此自动享受同样的网址／代码掩码保护、
+              同一份术语表、以及同一份缓存（划过的句子在整页翻译时直接命中，反之亦然）。
+              气泡不会遮挡页面内容，也不会改变页面上任何元素的尺寸。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="selectionTrigger">触发方式</label>
+          <div class="row__v">
+            <select id="selectionTrigger" data-setting="selectionTrigger" class="select"></select>
+            <p class="hint">
+              「松开鼠标即翻译」最直接，代价是每次划词都会发一次请求；
+              「先显示小图标」更省 —— 只有点击那个图标才真正翻译，适合按量计费的引擎。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">触发条件</span>
+          <div class="row__v">
+            <div class="inline">
+              <span class="inline__label">最短</span>
+              <input type="number" id="selectionMinLen" data-setting="selectionMinLen" class="input input--num" min="1" max="50">
+              <span class="inline__label">最长</span>
+              <input type="number" id="selectionMaxLen" data-setting="selectionMaxLen" class="input input--num" min="50" max="20000" step="50">
+            </div>
+            <p class="hint">
+              过短的选区（一个字母、一个数字）没有翻译价值；过长的选区其实已经是「划了一整段」，
+              用整页翻译更快也更省。纯数字与纯符号不会触发。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">让出赛道</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="selectionOnlyWithModifier" data-setting="selectionOnlyWithModifier">
+              <span>只在按住 <code>Alt</code> 划词时才翻译</span>
+            </label>
+            <p class="hint">
+              有些站点自带划词弹层（词典、批注、翻译）。开启后本扩展只在按住 Alt 划词时出手，
+              不再和站点的弹层抢位置。默认关闭 —— 对多数人多按一个键是净负担。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 页内开关 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>页内开关</h2>
+          <p class="card__sub">
+            页面右下角那个常驻的小开关：点一下即可开关本页翻译，不必再去够浏览器工具栏上的图标。
+          </p>
+        </div>
+
+        <div class="row">
+          <span class="row__k">显示与形态</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="toggleVisible" data-setting="toggleVisible">
+              <span>在页面里显示翻译开关</span>
+            </label>
+            <label class="check">
+              <input type="checkbox" id="toggleDefaultCollapsed" data-setting="toggleDefaultCollapsed">
+              <span>默认收起成一个圆点，悬停才展开</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">作用范围</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="siteMemory" data-setting="siteMemory">
+              <span>按站点记住开关状态（在某站点关掉翻译后，下次打开该站点仍是关的）</span>
+            </label>
+            <p class="hint">
+              开关点一下只影响<strong>当前页面</strong>，不会改动上面的「启用扩展」总开关 ——
+              在某个页面临时关掉翻译，不该让其他标签页跟着停。
+              控件的位置与收起状态会自动记住，可拖动到屏幕四角附近，松手后吸附到最近的边。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="row__k">位置</label>
+          <div class="row__v">
+            <button class="btn btn--sm" id="btnResetTogglePos">恢复默认位置</button>
+            <p class="hint">
+              把开关放回右下角（距右、下边缘各 16px），并恢复为展开状态。
+              与页面本身浮层（回到顶部、客服气泡）撞车时，开关会自动上移避让。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">隐藏控件后</span>
+          <div class="row__v">
+            <p class="hint">
+              关掉「显示翻译开关」只是隐藏这个控件，<strong>扩展本身不受影响</strong>：
+              工具栏图标、右键菜单、快捷键 <code>Alt+Shift+T</code> 照常可用。
+            </p>
+          </div>
+        </div>
+      </section>
+    </details>
+
+    <!-- ==================== 分组：高级设置（Z1 · C-59，默认收起） ==================== -->
+    <!-- 小白路径的护栏：所有「看了会困惑」的技术选项集中在这里。
+         默认收起 ⇒ 首屏可视文本（innerText）不含 DeepL / OpenAI / 并发 / API Key，
+         由探针 probe-zero-threshold.mjs 断言（折叠 details 的内容不计入 innerText）。 -->
+    <details class="group" id="groupAdvanced">
+      <summary class="group__hd">
+        <span class="group__t">高级设置</span>
+        <span class="group__d">不了解请保持默认 —— 默认设置对多数人就是最佳选择</span>
+      </summary>
+
+      <p class="group__note">
+        <strong>这里的东西通常不用改。</strong>
+        下面的选项决定「由谁来做翻译」。默认的「自动」会自己挑一条最合适的通道，
+        多数人打开就不用再管；只有当你自己有 DeepL 账号，或公司提供了专用翻译服务时，
+        才需要动这里的设置。改之前请先点「测试当前引擎」确认能用。
+      </p>
+
+      <!-- ============================ 翻译引擎 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>翻译引擎</h2>
+          <p class="card__sub">决定用谁来做翻译。质量、速度、成本与隐私在这几个选项之间取舍。</p>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="provider">默认引擎</label>
+          <div class="row__v">
+            <select id="provider" data-setting="provider" class="select"></select>
+            <p class="hint" id="providerHint"></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">内置模型状态</span>
+          <div class="row__v">
+            <div class="inline">
+              <span class="pill" id="builtinState" role="status" aria-live="polite">检测中…</span>
+              <button class="btn btn--sm" id="btnPrepareModel">下载语言包</button>
+            </div>
+            <p class="hint">
+              内置模型由 Chrome 本地运行（本机处理），免费，需要 Chrome 138 及以上版本。
+              首次使用某语向时需下载语言包（约几十 MB），点击左侧按钮可手动触发。
+              浏览器版本低于 138 时这一路不可用，扩展会改用 Google 翻译，
+              并在首次降级时提示你一次（见下方「当前翻译通道」）。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="deeplApiKey">DeepL</label>
+          <div class="row__v">
+            <div class="inline">
+              <select id="deeplPlan" data-setting="deeplPlan" class="select select--narrow">
+                <option value="free">免费版</option>
+                <option value="pro">专业版</option>
+              </select>
+              <input type="password" id="deeplApiKey" data-setting="deeplApiKey" class="input" placeholder="DeepL API Key" autocomplete="off">
+            </div>
+            <p class="hint">中文表达最自然的一档。免费版每月 50 万字符，Key 在 DeepL 官网账号页获取。</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">OpenAI 兼容接口</span>
+          <div class="row__v">
+            <div class="inline">
+              <input type="text" id="openaiBaseUrl" data-setting="openaiBaseUrl" class="input input--wide" placeholder="https://api.openai.com/v1">
+            </div>
+            <div class="inline inline--mt">
+              <input type="text" id="openaiModel" data-setting="openaiModel" class="input input--narrow" placeholder="gpt-4o-mini">
+              <input type="password" id="openaiApiKey" data-setting="openaiApiKey" class="input" placeholder="API Key" autocomplete="off">
+            </div>
+            <p class="hint">可填任何兼容 <code>/chat/completions</code> 的服务，包括自建网关与本地模型。</p>
+          </div>
+        </div>
+
+        <div class="row row--action">
+          <span class="row__k"></span>
+          <div class="row__v">
+            <button class="btn btn--primary" id="btnProbe">测试当前引擎</button>
+            <span class="pill" id="probeResult" role="status" aria-live="polite" hidden></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 性能与限额 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>性能与限额</h2>
+          <p class="card__sub">只有在翻译变慢、或免费接口报「请求过多」时才需要调这里。</p>
+        </div>
+
+        <div class="row">
+          <span class="row__k">性能参数</span>
+          <div class="row__v">
+            <div class="inline">
+              <span class="inline__label">最少文本长度</span>
+              <input type="number" id="minTextLength" data-setting="minTextLength" class="input input--num" min="1" max="30">
+              <span class="inline__label">单页上限</span>
+              <input type="number" id="maxUnitsPerPage" data-setting="maxUnitsPerPage" class="input input--num" min="100" max="20000" step="100">
+              <span class="inline__label">并发请求</span>
+              <input type="number" id="concurrency" data-setting="concurrency" class="input input--num" min="1" max="12">
+            </div>
+            <p class="hint">
+              并发越高翻译越快，但更容易触发接口限流；Google 免费接口建议不超过 4。
+              单页上限用于防止超长页面把接口额度一次烧完。
+            </p>
+          </div>
+        </div>
+      </section>
+    </details>
+
+    <!-- ==================== 分组：译文质量 ==================== -->
+    <details class="group" open>
+      <summary class="group__hd">
+        <span class="group__t">译文质量</span>
+        <span class="group__d">占位符保护、自动保护与翻译缓存</span>
+      </summary>
+
+      <!-- ============================ 译文准确性 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>译文准确性</h2>
+          <p class="card__sub">
+            让专有名词、代号与网址不被引擎「顺手翻掉」。这里的规则对所有翻译方式都生效，
+            不需要你去区分它此刻走的是哪一条通道。
+          </p>
+        </div>
+
+        <div class="row">
+          <span class="row__k">内置术语基座</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="termBaseEnabled" data-setting="termBaseEnabled">
+              <span>启用内置术语基座<span id="termBaseCount" class="muted"></span></span>
+            </label>
+            <p class="hint">
+              通用翻译模型按「高频义」取词，因此在没有约束时，<code>Growth Product Manager</code>
+              必然被译成「<strong>成长</strong>产品经理」—— 那不是引擎出错，是无约束时的默认行为。
+              基座把这些无歧义搭配在送翻前锁死译名，于是无论用哪个引擎、结果都一致。
+              <br>
+              <strong>只收无歧义搭配与专有名词，不收多义单词</strong>：<code>Growth</code>
+              单独收进来会把 <em>personal growth</em> 译成「个人增长」，等于用新错换旧错。
+              被有意排除的多义词都记在基座里，可查可审。
+              <span id="termBaseVersion" class="muted"></span>
+            </p>
+
+            <div id="termDomains" class="domain-grid"></div>
+            <p class="hint">
+              分域开启：在纯技术文档站上把 <code>Marketing</code> 也锁成「市场营销」是噪音，
+              在招聘站上却正是要的。全部勾选 = 跟随基座（日后新增的域自动纳入）。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">自动保护</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="protectUntranslatable" data-setting="protectUntranslatable">
+              <span>不翻译网址、邮箱、代码标识符、版本号与 <code>{变量}</code> 占位符</span>
+            </label>
+            <p class="hint">
+              开启后，这些片段会先被摘出原文、等译文返回再原样放回 ——
+              避免出现「<code>https://a.com/b</code> 被翻成中文」「<code>v1.2.3</code> 变成 <code>v1.2.3版</code>」
+              这类问题。若某段译文总是被改坏，可暂时关掉它来确认是不是这条规则引起的。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 缓存 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>缓存</h2>
+          <p class="card__sub">已翻译过的句子会记住结果，重复浏览或翻页返回时不再重复请求翻译接口。</p>
+        </div>
+
+        <div class="row">
+          <span class="row__k">当前占用</span>
+          <div class="row__v">
+            <div class="inline">
+              <span class="pill pill--mono" id="cacheState" role="status" aria-live="polite">读取中…</span>
+              <button class="btn btn--sm btn--danger" id="btnClearCache">清空缓存</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">开关</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="cacheEnabled" data-setting="cacheEnabled">
+              <span>启用翻译缓存</span>
+            </label>
+          </div>
+        </div>
+      </section>
+    </details>
+
+    <!-- ==================== 分组：范围与进阶 ==================== -->
+    <details class="group">
+      <summary class="group__hd">
+        <span class="group__t">范围与进阶</span>
+        <span class="group__d">哪些站点与区域不翻，以及键盘快捷键</span>
+      </summary>
+
+      <!-- ============================ 生效范围 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>生效范围</h2>
+          <p class="card__sub">哪些站点不翻，哪些区域不翻。</p>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="blocklist">不翻译的站点</label>
+          <div class="row__v">
+            <textarea id="blocklist" class="textarea" rows="4" placeholder="每行一个域名，例如：&#10;example.com&#10;*.internal.company.com"></textarea>
+            <p class="hint">支持 <code>*.域名</code> 通配写法。弹窗里的「此站点不再翻译」也会写入这里。</p>
+          </div>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="skipSelectors">跳过的区域</label>
+          <div class="row__v">
+            <textarea id="skipSelectors" class="textarea" rows="3" placeholder="每行一个 CSS 选择器，例如：&#10;.comment-body&#10;#sidebar&#10;[data-no-translate]"></textarea>
+            <p class="hint">默认已跳过代码块、输入框、脚本与样式；这里补充站点特有的区域。</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 覆盖范围 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>覆盖范围</h2>
+          <p class="card__sub">
+            页面早已不只是「一张文档」—— 正文可能嵌在框架里，也可能封在组件里。这里决定哪些结构要跟着翻。
+          </p>
+        </div>
+
+        <div class="row">
+          <span class="row__k">内嵌框架</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="iframeEnabled" data-setting="iframeEnabled">
+              <span>翻译页面里的内嵌框架（iframe）</span>
+            </label>
+            <p class="hint">
+              正文常常嵌在框架里（在线文档、帮助中心、部分博客）。开启后每个框架会<strong>先自己判断一次</strong>是否值得翻：
+              可视面积小于约 350×230、可见文字少于 200 字、或带广告标记的框架会被跳过；
+              每个标签页最多放行 20 个框架，名额满时面积更大的框架会顶替掉最小的那个 ——
+              保证「最重要的那个框架一定在名单里」。关闭后只翻顶层文档，在广告／统计脚本较多的站点上更省额度。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">组件内文本</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="shadowDomEnabled" data-setting="shadowDomEnabled">
+              <span>翻译 Web Components（Shadow DOM）内的文本</span>
+            </label>
+            <p class="hint">
+              越来越多的站点把内容封在自定义组件里（设计系统、嵌入式评论、在线客服）。
+              本扩展只处理<strong>开放</strong>（open）的 Shadow DOM ——
+              浏览器不提供从外部读取封闭（closed）组件的任何途径，这是平台限制，不是能力缺失。
+              组件内的译文样式会单独注入到组件内部，因为页面样式无法穿透这个边界。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ PDF ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>PDF 双语对照</h2>
+          <p class="card__sub">
+            在浏览器里打开 <code>.pdf</code> 时，改用扩展自带的查看器，以便做原文 / 译文对照。
+          </p>
+        </div>
+
+        <div class="row">
+          <span class="row__k">开关</span>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="pdfEnabled" data-setting="pdfEnabled">
+              <span>打开 PDF 时使用扩展的对照查看器</span>
+            </label>
+            <p class="hint">
+              Chrome 自带的 PDF 查看器是一个独立的插件文档，扩展<strong>无法</strong>在其中注入脚本 ——
+              所以「在原生查看器上做对照」这条路技术上走不通，只能自带一个查看器。
+              开启后，打开以 <code>.pdf</code> 结尾的地址会被转到扩展的查看器：原文用 pdf.js 渲染，
+              「双语对照」开关会把整页译文按行浮在原文位置，随时可一键切回 Chrome 原生查看器。
+              解析全程在本机完成，PDF 内容不会被上传到任何地方（只有送翻译的文本会走你选定的引擎）。
+            </p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">首期边界</span>
+          <div class="row__v">
+            <p class="hint">
+              这些是如实说明的限制，不是待办清单里的空话：<br>
+              · <strong>扫描件不做 OCR</strong>。整页就是一张图的 PDF（没有文字层）不会被假装翻出来，
+              查看器会明确提示「这一页没有文字层」，并给出走外部 OCR 的出口。<br>
+              · <strong>双栏按单栏处理</strong>。学术论文的两栏排版会按单栏顺序聚行，阅读顺序可能不理想。<br>
+              · <strong>表格列用制表符保留</strong>，不做单元格对齐；译文按行浮在原文上，行距固定的 PDF 必然有部分重叠。<br>
+              · <strong>按页翻译，不预翻后续页</strong>。这样打开大文件时首屏最快。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================ 快捷键 ============================ -->
+      <section class="card">
+        <div class="card__hd">
+          <h2>快捷键</h2>
+          <p class="card__sub">
+            分两层：<strong>全局快捷键</strong>由浏览器派发，页面不必获得焦点，但 Chrome 不允许扩展程序自行修改它，
+            只能去 <code>chrome://extensions/shortcuts</code> 改；<strong>页内快捷键</strong>在下面直接设，
+            只在当前页面获得焦点时生效，随账号同步。
+          </p>
+        </div>
+        <div class="row">
+          <span class="row__k">全局 · Alt + Shift + T</span>
+          <div class="row__v"><span class="muted">切换当前页面的翻译开关</span></div>
+        </div>
+        <div class="row">
+          <span class="row__k">全局 · Alt + Shift + Y</span>
+          <div class="row__v"><span class="muted">循环切换显示方式（原文下方双语 / 仅显示译文 / 悬停）</span></div>
+        </div>
+
+        <!-- 页内绑定表由 options.js 渲染（键名与动作来自 CT.BINDABLE_ACTIONS） -->
+        <div id="shortcutRows"></div>
+
+        <div class="row">
+          <span class="row__k">说明</span>
+          <div class="row__v">
+            <p class="hint">
+              点「录制」后按下想要的组合键即可。<strong>必须包含 Ctrl、Alt 或 Cmd 中的一个</strong> ——
+              只用字母或只加 Shift 会和正常打字抢键。与上面的全局快捷键冲突的组合会被拒绝，
+              否则一次按键会同时触发两条路径。在输入框、文本域或可编辑区域里打字时，页内快捷键一律不生效。
+            </p>
+          </div>
+        </div>
+      </section>
+    </details>
+
+
+    <!-- ============================ 配置迁移 ============================ -->
+    <details class="group" open id="groupMigration">
+      <summary class="group__hd">
+        <span class="group__t">配置迁移</span>
+        <span class="group__d">把设置导出成文件，在另一台设备导入</span>
+      </summary>
+      <section class="card">
+        <div class="row">
+          <span class="row__k">配置迁移</span>
+          <div class="row__v">
+            <div class="inline">
+              <button class="btn btn--sm" id="btnExportSettings">导出设置（.json）</button>
+              <button class="btn btn--sm" id="btnImportSettings">导入设置</button>
+              <input type="file" id="importFile" accept="application/json,.json" hidden>
+            </div>
+            <p class="hint">
+              把本机设置（含术语表与纠错记录）导出成文件，在另一台设备上导入，
+              即完成迁移 —— 全程本地文件，不经任何服务器。导入会覆盖本机的全部设置。
+            </p>
+          </div>
+        </div>
+      </section>
+    </details>
+
+    <!-- ==================== 分组：隐私（B2 动作记录，C-68 拟） ====================
+         文案取自《B2-变更单-联调上报》§7.1 参考文案（**非规范**，UX 与法务终审）。
+         禁用词自检（DL-6 / D-B2-01 §4.6 清单）已过：本段 0 命中（清单字面不在此复述，
+         以免自检脚本误扫注释；校验方式见 tools/test-report.mjs 之外的独立核对）。
+         开关语义：勾选 = 允许上报（telemetryOptOut=false）；取消勾选 = 退出。 -->
+    <details class="group" id="groupPrivacy">
+      <summary class="group__hd">
+        <span class="group__t">隐私</span>
+        <span class="group__d">匿名使用统计与匿名标识</span>
+      </summary>
+
+      <section class="card" id="cardPrivacy">
+        <div class="card__hd">
+          <h2>帮助改进叠译（匿名统计）</h2>
+          <p class="card__sub">
+            仅用于统计安装量与翻译次数，帮我们判断这个扩展有没有人在用、有没有变慢。
+          </p>
+        </div>
+
+        <div class="row">
+          <label class="row__k" for="telemetryOn">匿名统计</label>
+          <div class="row__v row__v--stack">
+            <label class="check">
+              <input type="checkbox" id="telemetryOn">
+              <span>发送匿名使用统计（不包含任何网页内容）</span>
+            </label>
+            <p class="hint">仅统计安装与翻译次数，不含原文、译文、网址或账号信息。</p>
+            <p class="hint" id="privacyState" role="status" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div class="row">
+          <span class="row__k">匿名标识</span>
+          <div class="row__v">
+            <div class="inline">
+              <button class="btn btn--sm" id="btnResetAnonId">重置匿名标识</button>
+            </div>
+            <p class="hint" id="privacyResetState" role="status" aria-live="polite">
+              重置后本机会生成新的匿名标识，此前的匿名汇总无法再与本机关联。
+            </p>
+          </div>
+        </div>
+      </section>
+    </details>
+
+
+    <footer class="foot">
+      <span id="saveState" class="muted" role="status" aria-live="polite">—</span>
+      <span class="muted" id="versionLabel">叠译</span>
+    </footer>
+  </div>
+
+  <script src="../shared/constants.js"></script>
+  <!-- 术语基座：设置页要按 CT.terminology.DOMAINS 渲染分域开关，
+       并显示治理版本号。与 service worker 加载的是同一份数据。 -->
+  <script src="../shared/terminology.js"></script>
+  <!--
+    页内快捷键的归一化必须与页面里跑的那份是同一段代码，
+    否则设置页录出来的组合串和内容脚本比对的组合串对不上（顺序、大小写任一处不同就会失配）。
+    这里直接复用内容脚本本身，而不是在设置页里抄一遍 comboOf。
+    keymap.js 不调用 attach() 就没有任何副作用，可以安全地作为普通脚本引入。
+  -->
+  <script src="../content/keymap.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

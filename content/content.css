@@ -1,0 +1,638 @@
+/* ==================================================================
+ * 叠译 · 注入样式
+ * ------------------------------------------------------------------
+ * 注入到第三方页面，因此这里遵循三条纪律：
+ *   1) 关键属性一律加 !important —— 站点样式千奇百怪，不加会被压掉
+ *   2) 不用 `all: initial` —— 它会斩断颜色、字号等继承，反而更糟
+ *   3) 类名前缀统一 ct-，避免与站点类名撞车
+ * ================================================================== */
+
+/* ---------------- 译文块：只负责结构与排版，装饰交给样式修饰类 ----------------
+ * 这里刻意【不含】颜色、边框、内边距与 ::before 标记 ——
+ * 默认的「素净」样式除了把字号调小，不对宿主页面做任何观感改动。
+ * 需要一眼区分原文/译文时，由 .ct-s-accent 单独叠加。               */
+.ct-trans {
+  display: block !important;
+  box-sizing: border-box !important;
+
+  /* 只留一点点上方间距把译文与原文分开。下方不留白：
+     否则会把段落原有的外边距节奏撑开，看起来像「段落间距变了」。 */
+  margin: 2px 0 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+
+  font-family: system-ui, -apple-system, "PingFang SC", "Hiragino Sans GB",
+               "Microsoft YaHei", "Source Han Sans SC", sans-serif !important;
+  font-weight: 400 !important;
+  font-style: normal !important;
+  line-height: 1.55 !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+  text-transform: none !important;
+  text-shadow: none !important;
+  text-decoration: none !important;
+
+  /* 字号：由 JS 写入的两个变量收口 —— min(相对原文的比例, 页面基准字号)。
+     百分比字号相对【父元素】解析，直接用百分比会让 <h1> 下的译文跟着标题
+     一起放大；封顶之后标题下的译文回到正文大小。
+     第一条是兜底：不支持 min() 的浏览器会忽略第二条，拿到纯百分比。 */
+  font-size: 80% !important;
+  font-size: min(var(--ct-scale, 80%), var(--ct-cap, 100%)) !important;
+
+  color: inherit !important;
+  opacity: 1;
+
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere;
+  max-width: 100% !important;
+  /* 允许在弹性 / 网格容器里被压缩：弹性项默认 min-width:auto，
+     长译文会把容器顶宽，进而挤到同一行的其他子项 */
+  min-width: 0 !important;
+
+  /* 被站点 transform / float 污染的兜底 */
+  position: static !important;
+  float: none !important;
+  clear: none !important;
+}
+
+/* ---------------- 样式修饰：素净（默认） ---------------- */
+/* 不加边框、不加背景、不加标记，只把透明度略降。
+   颜色走 inherit，因此在任何底色（深色页、品牌橙、图片背景）上都能保住对比度，
+   也不会像固定蓝色那样在彩色底上糊掉。 */
+.ct-s-plain {
+  color: inherit !important;
+  opacity: 0.82;
+}
+
+.ct-s-plain::before {
+  content: none !important;
+}
+
+/* ---------------- 样式修饰：标注 ---------------- */
+/* 标记文案跟着**目标语言**走（由 JS 写在 data-ct-mark 上）。
+   多语言互译下这一条是必需的：目标语言是日语却标着「译」，
+   用户分不清眼前这段是中文还是日语。
+   属性缺失时退回「译」，保证老节点（升级前渲染的）不会变成空白。 */
+.ct-s-accent {
+  padding: 1px 0 1px 9px !important;
+  border-left: 2px solid rgba(45, 125, 210, 0.62) !important;
+  color: #17558f !important;
+  opacity: 0.96;
+}
+
+.ct-s-accent::before {
+  content: attr(data-ct-mark);
+  display: inline-block !important;
+  margin-right: 5px !important;
+  padding: 1px 3px !important;
+  border-radius: 3px !important;
+
+  background: rgba(45, 125, 210, 0.14) !important;
+  color: #3d7fc4 !important;
+
+  font-size: 9px !important;
+  line-height: 1.35 !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  vertical-align: 1px !important;
+  user-select: none;
+}
+
+/* 属性缺失时的兜底：:not() 让这条只在不含标记时生效 */
+.ct-s-accent:not([data-ct-mark])::before {
+  content: "译";
+}
+
+/* ---------------- 内部追加（默认插入点） ----------------
+ * 单元自身就是弹性 / 网格容器的情况已由 JS 改走「容器之后」，
+ * 这里只兜住残余场景：网格容器横跨整行，弹性容器占满一行。 */
+.ct-trans.ct-trans--in {
+  width: 100% !important;
+  grid-column: 1 / -1 !important;
+}
+
+/* ---------------- 内联追加（宿主是内联级元素） ----------------
+ * 内联级元素不参与块级布局，块级译文会直接打断行盒 ——
+ * 标签行会被拆成两行、定高的 pill 会被撑破。这里改用内联译文：
+ * 不新增兄弟节点、不打断行盒，宿主只因为内容变长而自然变宽。
+ *
+ * ★ v1.7.1 的关键陷阱：下面的 `white-space: inherit` 是**有意为之**，
+ *   但也是「译文被截成 `高级成长产…`」的直接成因 —— 宿主写着 nowrap 时，
+ *   译文被拉着永不换行，只能一行排到底，然后被站点自己的
+ *   `overflow:hidden + text-overflow:ellipsis` 吃掉。
+ *   它不能删（删了定高 pill 会被撑成两行），所以只能由 JS 侧兜住：
+ *   renderer 的第一级会把「自身或祖先 nowrap / 定高 / 裁切」的单元圈出来，
+ *   第二级用真实矩形量测判决，确认被裁的搬出去。见 renderer#judgeOne。 */
+.ct-trans.ct-trans--inl {
+  display: inline !important;
+  width: auto !important;
+  margin: 0 0 0 0.45em !important;
+  /* 行高与换行策略都跟随宿主：任一被改写都会改变行盒高度，
+     在定高的 pill 上直接表现为「盒子被撑成两行」 */
+  line-height: inherit !important;
+  white-space: inherit !important;
+  vertical-align: baseline !important;
+  /* text-overflow 只对块级容器生效，写在行内节点上是空转；
+     写在这里是为了显式声明「我们不想参与站点的省略号机制」，
+     免得后来的人误以为漏了它。真正的兜底在 JS 的量测判决。 */
+  text-overflow: clip !important;
+}
+
+/* ---------------- 可换行弹性容器内的译文 ----------------
+ * 容器 flex-wrap: wrap 时，给译文一个整行宽的弹性基准，它会独占新的一行，
+ * 原有子项的宽度与位置一个都不动。
+ * 必须单独成类而不能写进 .ct-trans--in：flex-basis 沿主轴生效，
+ * 落在纵向弹性容器上会变成「占满整个容器高度」。 */
+.ct-trans.ct-trans--wrap {
+  flex: 0 0 100% !important;
+}
+
+/* ---------------- 插到锚点之后（横向弹性容器专用） ---------------- */
+.ct-trans.ct-trans--out {
+  margin: 3px 0 0 !important;
+}
+
+/* ---------------- 搬移后的译文（v1.7.1） ----------------
+ * 第二级几何判决确认「译文在原容器里不可见」之后，会把节点挪到约束容器之外，
+ * 并把类名从 --in / --inl 换成 --moved。
+ *
+ * 单独成类的三个理由：
+ *   1) 审计与统计要能一眼数出「有多少条是被搬过来的」；
+ *   2) 搬移可能把内联形态（<span>）改成块级形态，display 必须显式声明，
+ *      否则 <span> + --inl 的残留类名会让它继续内联，白搬一趟；
+ *   3) 它和 --out 的语义不同：--out 是「一开始就打算放外面」（弹性行容器），
+ *      --moved 是「本来放里面、量了才发现看不见」。混用会让排障失去线索。 */
+.ct-trans.ct-trans--moved {
+  display: block !important;
+  width: 100% !important;
+  margin: 3px 0 0 !important;
+  position: static !important;
+  float: none !important;
+}
+
+/* 搬移后不保留任何视觉标记，避免与 --out 的呈现产生差异 */
+.ct-trans.ct-trans--moved::before {
+  content: none !important;
+}
+
+/* ---------------- 「仅显示译文」模式 ---------------- */
+.ct-replaced {
+  /* 保留原有盒模型，只标记状态，便于还原与调试 */
+  outline: 0 !important;
+}
+
+/* ---------------- 「悬停查看」模式的标记线 ---------------- */
+.ct-hover {
+  border-bottom: 1px dashed rgba(45, 125, 210, 0.75) !important;
+  cursor: help !important;
+}
+
+/* ---------------- 悬停浮层（由 content.js 定位，固定定位不影响页面布局） ---------------- */
+.ct-tip {
+  position: fixed !important;
+  z-index: 2147483600 !important;
+  left: 0 !important;
+  top: 0 !important;
+
+  max-width: 460px !important;
+  max-height: 40vh !important;
+  overflow: auto !important;
+  box-sizing: border-box !important;
+
+  padding: 8px 11px !important;
+  border: 1px solid rgba(45, 125, 210, 0.35) !important;
+  border-radius: 7px !important;
+
+  background: #ffffff !important;
+  color: #17558f !important;
+  box-shadow: 0 8px 26px rgba(15, 40, 80, 0.22) !important;
+
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  font-size: 13.5px !important;
+  line-height: 1.6 !important;
+  text-align: left !important;
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+
+  display: none;
+  pointer-events: none;
+  user-select: none;
+}
+
+.ct-tip.ct-tip--on {
+  display: block !important;
+}
+
+/* ---------------- 右下角进度徽标 ---------------- */
+.ct-badge {
+  position: fixed !important;
+  right: 14px !important;
+  bottom: 14px !important;
+  z-index: 2147483600 !important;
+
+  box-sizing: border-box !important;
+  padding: 7px 12px !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(45, 125, 210, 0.28) !important;
+
+  background: rgba(255, 255, 255, 0.97) !important;
+  color: #17558f !important;
+  box-shadow: 0 6px 20px rgba(15, 40, 80, 0.18) !important;
+
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  letter-spacing: 0 !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+.ct-badge.ct-badge--on {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.ct-badge__dot {
+  width: 7px !important;
+  height: 7px !important;
+  border-radius: 50% !important;
+  background: #2f7fd4 !important;
+  flex: 0 0 auto !important;
+  animation: ct-pulse 1.1s ease-in-out infinite;
+}
+
+.ct-badge__dot--done {
+  animation: none !important;
+  background: #2fa96b !important;
+}
+
+.ct-badge__dot--err {
+  animation: none !important;
+  background: #d9534f !important;
+}
+
+/*
+ * 可点击徽标（v1.7.7，C-29）。
+ * 到期提示需要一条出路：点一下直达设置页激活 Pro。
+ * 只加"看起来能点"的视觉与命中区，不改动任何既有徽标的行为 ——
+ * 不传 opts.onClick 时 .ct-badge--act 不会出现（见 content.js showBadge）。
+ */
+.ct-badge--act {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+.ct-badge--act:hover {
+  filter: brightness(0.97);
+}
+
+@keyframes ct-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+/* ---------------- 深色页面自适应 ---------------- */
+/* 素净样式走 color:inherit，深浅色页面都自动成立，无需在这里覆盖。
+   只有标注样式的固定蓝色需要在深色底上提亮。 */
+@media (prefers-color-scheme: dark) {
+  .ct-s-accent {
+    color: #8ec0f2 !important;
+    border-left-color: rgba(110, 175, 240, 0.7) !important;
+  }
+  .ct-s-accent::before {
+    background: rgba(110, 175, 240, 0.2) !important;
+    color: #a4cdf5 !important;
+  }
+  .ct-hover {
+    border-bottom-color: rgba(110, 175, 240, 0.8) !important;
+  }
+  .ct-tip {
+    background: #1b2230 !important;
+    color: #cfe3f8 !important;
+    border-color: rgba(110, 175, 240, 0.35) !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55) !important;
+  }
+  .ct-badge {
+    background: rgba(22, 28, 40, 0.97) !important;
+    color: #cfe3f8 !important;
+    border-color: rgba(110, 175, 240, 0.3) !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+  }
+}
+
+/* ---------------- 打印时自动隐藏译注标记，保留译文 ---------------- */
+@media print {
+  .ct-badge,
+  .ct-tip {
+    display: none !important;
+  }
+}
+
+/* ================================================================
+ * 页内纠错闭环（v1.7.4，C-13 Q3）
+ * ------------------------------------------------------------------
+ * 页内纠错闭环（v1.7.4，C-13 Q3）
+ * ------------------------------------------------------------------
+ * 纠错入口与行内修正编辑器。全 fixed 定位、!important 全副武装 ——
+ * 与页内开关 / 划词气泡同一个思路：宿主页面的任何样式都不该能撕碎它们。
+ * C-51（2026-09-29）：图标从「改」单字改为铅笔「✎」（用户裁决页面
+ * 不再展示「改」字）；示意角标 .ct-corr-hint 整体下线（样式已删）。
+ * ================================================================ */
+.ct-corr-chip {
+  /* left/top 由 JS 行内样式给定（跟随鼠标）—— 这里不能写 !important 的
+     left/top，否则行内定位永远输给样式表，浮层被钉死在 (0,0) 互相叠住
+     （e2e 探针实测：editorRect 0,0 → 点 OK 实际点到 chip 上）。 */
+  position: fixed !important;
+  z-index: 2147483601 !important;
+  display: none !important;
+  width: 22px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(110, 175, 240, 0.55) !important;
+  border-radius: 4px !important;
+  background: rgba(255, 255, 255, 0.97) !important;
+  color: #2b5d8f !important;
+  font: 600 12px/20px system-ui, sans-serif !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18) !important;
+}
+.ct-corr-chip.ct-corr-on {
+  display: block !important;
+}
+.ct-corr-chip:hover {
+  background: #2b5d8f !important;
+  color: #fff !important;
+}
+
+.ct-corr-editor {
+  position: fixed !important;
+  z-index: 2147483602 !important;
+  display: none !important;
+  width: 280px !important;
+  padding: 8px !important;
+  border: 1px solid rgba(110, 175, 240, 0.45) !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.99) !important;
+  color: #1c2430 !important;
+  font: 12px/1.5 system-ui, sans-serif !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+}
+.ct-corr-editor.ct-corr-on {
+  display: block !important;
+}
+.ct-corr-tip {
+  margin-bottom: 6px !important;
+  color: #667 !important;
+  word-break: break-word !important;
+}
+.ct-corr-ta {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding: 6px !important;
+  border: 1px solid rgba(110, 175, 240, 0.5) !important;
+  border-radius: 4px !important;
+  font: 12px/1.5 system-ui, sans-serif !important;
+  color: #1c2430 !important;
+  background: #fff !important;
+  resize: vertical !important;
+}
+.ct-corr-bar {
+  margin-top: 6px !important;
+  text-align: right !important;
+}
+.ct-corr-btn {
+  display: inline-block !important;
+  margin-left: 6px !important;
+  padding: 3px 10px !important;
+  border: 1px solid rgba(110, 175, 240, 0.5) !important;
+  border-radius: 4px !important;
+  background: #fff !important;
+  color: #2b5d8f !important;
+  font: 12px/1.6 system-ui, sans-serif !important;
+  cursor: pointer !important;
+}
+.ct-corr-btn.ct-corr-ok {
+  background: #2b5d8f !important;
+  border-color: #2b5d8f !important;
+  color: #fff !important;
+}
+.ct-corr-btn:hover {
+  opacity: 0.88 !important;
+}
+
+/* ================================================================
+ * 纠错入口示意角标（v1.7.5 C-17 F2）—— C-51（2026-09-29）整体下线：
+ * 用户裁决「页面不再展示改字」，.ct-corr-hint 样式与
+ * ct-corr-hint-fade 动画随 JS 模块一并删除。
+ * ================================================================ */
+
+/* ================================================================
+ * B2 变更集（C-63 ~ C-67）· 页面注入层新增浮层
+ * ------------------------------------------------------------------
+ * 沿用 content 侧既有硬编码色值口径（#2b5d8f / rgba(110,175,240,…)），
+ * 与设置页 token 体系不混用；下列新增类均补 prefers-color-scheme: dark 覆盖。
+ * ================================================================ */
+
+/* ---------------- C-63 · 学习确认卡 .ct-learn-card ----------------
+ * 非模态锚定浮层：不设全屏遮罩、不阻断正文；正常经 CT.layers 仲裁，
+ * z-index 仅作最后兜底（在 chip 2147483601 / editor 2147483602 之上）。 */
+.ct-learn-card {
+  position: fixed !important;
+  z-index: 2147483603 !important;
+  box-sizing: border-box !important;
+  width: 300px !important;
+  min-width: 260px !important;
+  max-width: 320px !important;
+  padding: 14px !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.99) !important;
+  box-shadow: 0 10px 30px rgba(15, 40, 80, 0.22) !important;
+  color: #1c2430 !important;
+  font: 13px/1.5 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  text-align: left !important;
+  white-space: normal !important;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.16s ease-out, transform 0.16s ease-out;
+}
+.ct-learn-card.ct-learn-on {
+  opacity: 1 !important;
+  transform: translateY(0) !important;
+}
+.ct-learn-card.ct-learn-out {
+  transition-duration: 0.12s !important;
+  opacity: 0 !important;
+  transform: translateY(4px) !important;
+}
+.ct-learn-title {
+  margin: 0 0 6px !important;
+  font-size: 13.5px !important;
+  font-weight: 650 !important;
+  line-height: 1.55 !important;
+  color: #1c2430 !important;
+  word-break: break-word !important;
+}
+.ct-learn-title b { font-weight: 700 !important; color: #1c2430 !important; }
+.ct-learn-warn {
+  margin: 0 0 6px !important;
+  font-size: 12.5px !important;
+  line-height: 1.55 !important;
+  color: #1c2430 !important;
+  word-break: break-word !important;
+}
+.ct-learn-warn b { font-weight: 700 !important; }
+.ct-corr-replace {
+  display: block !important;
+  box-sizing: border-box !important;
+  margin: 0 0 8px !important;
+  padding: 4px 8px !important;
+  border-radius: 4px !important;
+  background: rgba(217, 138, 27, 0.10) !important;
+  font-size: 12.5px !important;
+  line-height: 1.5 !important;
+  color: #1c2430 !important;
+  word-break: break-word !important;
+}
+.ct-corr-replace b { font-weight: 700 !important; }
+.ct-learn-arrow { color: #8a939e !important; }
+.ct-learn-expect {
+  margin: 0 0 10px !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  color: #667 !important;
+}
+/* B2 迭代 A2：按钮旁副文本「加入我的词典，以后自动这样」 */
+.ct-learn-sub {
+  margin: 0 0 10px !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  color: #667 !important;
+}
+.ct-learn-bar { text-align: right !important; }
+.ct-learn-btn {
+  display: inline-block !important;
+  margin-left: 8px !important;
+  padding: 4px 12px !important;
+  border-radius: 5px !important;
+  font: 12.5px/1.6 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  cursor: pointer !important;
+}
+.ct-learn-cancel {
+  border: 1px solid rgba(110, 175, 240, 0.5) !important;
+  background: transparent !important;
+  color: #2b5d8f !important;
+}
+.ct-learn-ok {
+  border: 1px solid #2b5d8f !important;
+  background: #2b5d8f !important;
+  color: #fff !important;
+}
+.ct-learn-btn:hover { opacity: 0.88 !important; }
+
+/* ---------------- C-67 · 能力边界一次性提示 .ct-cap-note ----------------
+ * 顶部居中 toast；深色底保证浅色/深色宿主页上都清晰；与右下角 .ct-badge
+ * 空间不重叠；不设遮罩、不阻断滚动。自动消失 4.5s。 */
+.ct-cap-note {
+  position: fixed !important;
+  left: 50% !important;
+  top: 16px !important;
+  transform: translateX(-50%) translateY(-6px) !important;
+  z-index: 2147483604 !important;
+  box-sizing: border-box !important;
+  width: auto !important;
+  max-width: 420px !important;
+  padding: 10px 14px !important;
+  border-radius: 8px !important;
+  background: rgba(28, 36, 48, 0.94) !important;
+  color: #f5f7fa !important;
+  font: 13px/1.5 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28) !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 10px !important;
+  text-align: left !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.ct-cap-note.ct-cap-note--on {
+  opacity: 1 !important;
+  transform: translateX(-50%) translateY(0) !important;
+}
+.ct-cap-note__body { flex: 1 1 auto !important; min-width: 0 !important; }
+.ct-cap-note__main { font-size: 13px !important; line-height: 1.5 !important; }
+.ct-cap-note__sub {
+  margin-top: 3px !important;
+  font-size: 12px !important;
+  line-height: 1.5 !important;
+  opacity: 0.7;
+}
+.ct-cap-note__close {
+  flex: 0 0 auto !important;
+  padding: 0 2px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #f5f7fa !important;
+  font: 13px/1.2 system-ui, sans-serif !important;
+  cursor: pointer !important;
+  opacity: 0.85;
+}
+.ct-cap-note__close:hover { opacity: 1; }
+
+/* ---------------- B2 深色页面自适应 ---------------- */
+@media (prefers-color-scheme: dark) {
+  .ct-learn-card {
+    background: rgba(27, 34, 48, 0.99) !important;
+    color: #e6eef9 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55) !important;
+  }
+  .ct-learn-title,
+  .ct-learn-title b,
+  .ct-learn-warn,
+  .ct-learn-warn b { color: #e6eef9 !important; }
+  .ct-learn-expect { color: #9aa6b5 !important; }
+  .ct-learn-sub { color: #9aa6b5 !important; }
+  .ct-corr-replace { background: rgba(217, 138, 27, 0.16) !important; color: #f0e6d8 !important; }
+  .ct-corr-replace b { color: #f0e6d8 !important; }
+  .ct-learn-arrow { color: #9aa6b5 !important; }
+  .ct-learn-cancel { border-color: rgba(110, 175, 240, 0.5) !important; color: #8ec0f2 !important; }
+  .ct-learn-ok { border-color: #3f7fbf !important; background: #3f7fbf !important; color: #fff !important; }
+}
+
+/* ---------------- B2 动效降级 ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  .ct-learn-card {
+    transition: opacity 0.16s ease !important;
+    transform: none !important;
+  }
+  .ct-learn-card.ct-learn-on,
+  .ct-learn-card.ct-learn-out { transform: none !important; }
+  .ct-cap-note {
+    transition: opacity 0.2s ease !important;
+    transform: translateX(-50%) !important;
+  }
+  .ct-cap-note.ct-cap-note--on { transform: translateX(-50%) !important; }
+}
+
+/* ---------------- B2 打印时隐藏 ---------------- */
+@media print {
+  .ct-learn-card,
+  .ct-cap-note {
+    display: none !important;
+  }
+}

@@ -1,0 +1,798 @@
+/* ==================================================================
+ * 叠译 · 设置页样式
+ * ------------------------------------------------------------------
+ * 间距与圆角一律取自 :root 里的刻度（--sp-* / --r-*），不写裸像素值。
+ * 好处是可验证：搜一遍 CSS 有没有未经 token 的间距即可确认。
+ *   --sp-0  2px  发丝级（图标与文字、开关内部对齐）
+ *   --sp-1  4px
+ *   --sp-2  8px
+ *   --sp-3  12px
+ *   --sp-4  16px
+ *   --sp-5  24px
+ *   --sp-6  32px
+ * ================================================================== */
+
+:root {
+  --bg: #f2f5f9;
+  --card: #ffffff;
+  --fg: #17202b;
+  --fg-mute: #6b7a8c;
+  --line: #e3e9f0;
+  --accent: #2f7fd4;
+  --accent-soft: rgba(47, 127, 212, .1);
+  --accent-fg: #ffffff;
+  --soft: #f5f7fa;
+  --sunken: #eef2f7;
+  --ok: #2fa96b;
+  --warn: #d98a1b;
+  --err: #d9534f;
+  --err-soft: rgba(217, 83, 79, .08);
+  --err-line: rgba(217, 83, 79, .45);
+
+  /* 间距刻度 */
+  --sp-0: 2px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* 圆角刻度 */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 999px;
+  --radius: var(--r-lg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181f;
+    --card: #1b2029;
+    --fg: #e6edf5;
+    --fg-mute: #96a4b5;
+    --line: #2b333d;
+    --accent: #57a3e8;
+    --accent-soft: rgba(87, 163, 232, .16);
+    --accent-fg: #0f1620;
+    --soft: #222833;
+    --sunken: #161b23;
+    --ok: #43b880;
+    --warn: #e0a33f;
+    --err: #e2706c;
+    --err-soft: rgba(226, 112, 108, .12);
+    --err-line: rgba(226, 112, 108, .5);
+  }
+}
+
+* { box-sizing: border-box; }
+
+/* 作者样式里的 display（如 .inline 的 flex、.pill 的 inline-block）会盖掉
+   [hidden] 的 UA 默认 display:none —— 显式钉住，否则「默认隐藏、点击后展开」
+   的控件会一上来就露出来。 */
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--sp-6) var(--sp-5) calc(var(--sp-6) + var(--sp-5));
+}
+
+/* ---------------- 顶部 ---------------- */
+.top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.top__logo {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--r-lg);
+  flex: 0 0 auto;
+}
+
+.top h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: .2px;
+}
+
+.top__sub {
+  margin: var(--sp-1) 0 0;
+  color: var(--fg-mute);
+  font-size: 13px;
+  max-width: 620px;
+}
+
+/* UX-04（v1.7.6）：Pro 分组在页面最底部，顶部提供常驻跳转入口 */
+.top__jump {
+  margin: var(--sp-1) 0 0;
+  font-size: 13px;
+}
+.top__jump a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+  cursor: pointer;
+}
+.top__jump a:hover { filter: brightness(1.1); }
+
+
+.banner {
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  border: 1px solid rgba(47, 127, 212, .28);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+/* ---------------- 卡片 ---------------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--sp-5) var(--sp-5) var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.card__hd {
+  padding-bottom: var(--sp-3);
+  margin-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.card__hd h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.card__sub {
+  margin: var(--sp-0) 0 0;
+  color: var(--fg-mute);
+  font-size: 12.5px;
+}
+
+/* ---------------- 分组折叠 ----------------
+ * 卡片到 7 张时，「靠排序表达优先级」已经撑不住了（README「已知偏差 3」写死的门槛），
+ * 于是分组：前两组默认展开，第三组「范围与进阶」默认收起 ——
+ * 进阶项不占首屏，但组标题始终在，用户知道它在那儿。
+ * 用原生 <details>：键盘可达、无需 JS、展开状态由浏览器维护。
+ */
+.group { margin-bottom: var(--sp-4); }
+
+.group__hd {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  list-style: none;
+  cursor: pointer;
+  padding: var(--sp-1);
+  border-radius: var(--r-md);
+  user-select: none;
+}
+
+.group__hd::-webkit-details-marker { display: none; }
+
+/* 折叠三角。用两根边框拼，才能跟字号/主题一起走 —— 不依赖字体里的 ▸ 字形 */
+.group__hd::before {
+  content: "";
+  flex: 0 0 auto;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--fg-mute);
+  border-bottom: 1.5px solid var(--fg-mute);
+  transform: rotate(-45deg);
+  transition: transform .18s ease;
+}
+
+.group[open] > .group__hd::before { transform: rotate(45deg); }
+
+.group__t {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.group__d {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--fg-mute);
+}
+
+.group__hd:hover .group__t { color: var(--accent); }
+
+.group__hd:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* 组标题与首卡之间只留一点缝；末卡不再多顶一段空白 */
+.group > .card:first-of-type { margin-top: var(--sp-1); }
+.group > .card:last-of-type { margin-bottom: 0; }
+
+/* Z1（v1.7.9 C-59）：高级设置分组的引导语。
+   目的不是「好看」，是给打开这页的小白一句明确的劝退：
+   不懂就别动 —— 减少「随手改成 OpenAI 接口又填不了 Key」那类自伤行为。 */
+.group__note {
+  margin: var(--sp-1) 0 var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  border: 1px solid rgba(47, 127, 212, .22);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+/* Z4（v1.7.9 C-61）：激活成功确认卡片 —— 出现在兑换码输入框正下方 */
+.confirm {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  border: 1px solid rgba(47, 127, 212, .3);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.confirm__t {
+  margin: 0 0 var(--sp-1);
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.confirm__b { margin: 0; color: var(--fg); }
+
+/* ---------------- 行 ---------------- */
+.row {
+  display: flex;
+  gap: var(--sp-4);
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.row:last-child { border-bottom: 0; }
+
+.row--action { align-items: center; }
+
+.row__k {
+  flex: 0 0 150px;
+  padding-top: var(--sp-0);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.row__v {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.row__v--stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* ---------------- 控件 ---------------- */
+.select,
+.input,
+.textarea {
+  width: 100%;
+  max-width: 420px;
+  background: var(--soft);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--sp-2) var(--sp-3);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.select {
+  appearance: none;
+  padding-right: var(--sp-6);
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--fg-mute) 50%),
+                    linear-gradient(135deg, var(--fg-mute) 50%, transparent 50%);
+  background-position: calc(100% - 17px) calc(50% + 1px), calc(100% - 12px) calc(50% + 1px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.select--narrow { max-width: 190px; }
+
+/* ---------------- 语言对（源 ⇄ 目标） ----------------
+ * 两个下拉并排 + 中间一枚互换按钮。「方向可以反过来」这件事，
+ * 只有把两侧摆在同一行上才看得出来；竖着叠两行时用户只会以为
+ * 「源语言」是个被动的识别结果。
+ */
+.langpair {
+  display: grid;
+  grid-template-columns: minmax(0, 190px) auto minmax(0, 190px);
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 420px;
+}
+
+.select--pair {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+
+.swap {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--soft);
+  color: var(--fg-mute);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease, transform .18s ease;
+}
+
+.swap svg { display: block; width: 15px; height: 15px; }
+
+.swap:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.swap:active:not(:disabled) { transform: scale(.92); }
+
+.swap:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.swap:disabled { opacity: .45; cursor: not-allowed; }
+
+@media (max-width: 640px) {
+  .langpair { grid-template-columns: 1fr auto 1fr; }
+}
+
+.input--narrow { max-width: 190px; }
+
+.input--wide { max-width: 420px; }
+
+.input--num { max-width: 78px; text-align: center; }
+
+.textarea {
+  max-width: 100%;
+  resize: vertical;
+  min-height: 72px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.select:focus,
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.range {
+  width: 190px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ---------------- 布局小件 ---------------- */
+.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.inline--mt { margin-top: var(--sp-2); }
+
+.inline__label {
+  font-size: 12.5px;
+  color: var(--fg-mute);
+  white-space: nowrap;
+}
+
+.inline__label:not(:first-child) { margin-left: var(--sp-2); }
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.check input {
+  margin: var(--sp-0) 0 0;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.hint {
+  margin: var(--sp-2) 0 0;
+  color: var(--fg-mute);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.hint code,
+.top__sub code,
+.card__sub code {
+  background: var(--sunken);
+  padding: var(--sp-0) var(--sp-1);
+  border-radius: var(--r-xs);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.muted { color: var(--fg-mute); font-size: 12.5px; }
+
+/* ---------------- 按钮 ---------------- */
+.btn {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--soft);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .06s ease;
+}
+
+.btn:hover { background: var(--sunken); }
+
+.btn:active { transform: translateY(1px); }
+
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+}
+
+/*
+ * C-24（v1.7.6 验收期）：与 popup.css 同源缺陷 —— .btn:hover 会把背景刷成
+ * --sunken（近白），主按钮文字是白色 --accent-fg，悬停瞬间白字白底。
+ * 这里必须重新钉住背景与前景；单写 filter 不构成对 .btn:hover 的覆盖。
+ */
+.btn--primary:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-fg);
+  filter: brightness(1.06);
+}
+
+.btn--sm { padding: var(--sp-2) var(--sp-3); font-size: 12.5px; }
+
+/* 破坏性操作必须与同排的普通按钮在视觉上区分开（危险色 + 危险边框） */
+.btn--danger {
+  color: var(--err);
+  border-color: var(--err-line);
+  background: var(--err-soft);
+}
+
+.btn--danger:hover {
+  background: var(--err-soft);
+  border-color: var(--err);
+}
+
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ---------------- 状态胶囊 ---------------- */
+.pill {
+  display: inline-block;
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-full);
+  font-size: 12px;
+  font-weight: 550;
+  background: var(--sunken);
+  color: var(--fg-mute);
+  white-space: nowrap;
+  max-width: 560px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.pill--mono {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.pill--ok { background: rgba(47, 169, 107, .14); color: var(--ok); }
+.pill--warn { background: rgba(217, 138, 27, .14); color: var(--warn); }
+.pill--err { background: rgba(217, 83, 79, .14); color: var(--err); }
+
+/* ---------------- 页脚 ---------------- */
+.foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-top: var(--sp-2);
+}
+
+@media (max-width: 640px) {
+  .row { flex-direction: column; gap: var(--sp-2); }
+  .row__k { flex: 0 0 auto; padding-top: 0; }
+}
+
+/* ---------------- 术语基座：分域开关 ----------------
+ * 用 grid 的 auto-fill 而不是写死列数：域的数量会随基座演进变化，
+ * 写死列数会在新增域时留下一个空洞。
+ * 关掉基座时整块置灰并禁点，而不是隐藏 —— 隐藏会让「刚才是哪个开关
+ * 让它消失的」变得难以归因。 */
+.domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+}
+
+.domain-grid.is-off {
+  opacity: .5;
+  pointer-events: none;
+}
+
+.domain-grid .check {
+  font-size: 13px;
+}
+
+.domain-grid .domain__count {
+  color: var(--fg-mute);
+  font-size: 12px;
+}
+
+/* ==================================================================
+ * C-63（B2-1 · D3 双入口）「我的词典」
+ * ------------------------------------------------------------------
+ * 全部复用既有 :root token（间距 / 圆角 / 色板），不新增刻度。
+ * 来源标签（学得/手填）v1 只留视觉位、默认 hidden —— glossary 条目
+ * 经 parse/format 往返会剥掉未知字段，故不落字段也不展示。
+ * ================================================================== */
+.dict-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dict-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.dict-item:last-child { border-bottom: 0; }
+
+.dict-item__pair {
+  flex: 1 1 auto;
+  min-width: 0;
+  word-break: break-word;
+}
+
+.dict-item__from {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.dict-item__arrow {
+  font-size: 12px;
+  color: var(--fg-mute);
+  margin: 0 var(--sp-1);
+}
+
+.dict-item__to {
+  font-size: 13px;
+  color: var(--fg);
+}
+
+/* 译文为空（=保持原文）时的右槽 */
+.dict-item__keep {
+  font-size: 12px;
+  color: var(--fg-mute);
+}
+
+.dict-item__del {
+  appearance: none;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  background: transparent;
+  color: var(--fg-mute);
+  cursor: pointer;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+
+.dict-item__del svg { display: block; width: 14px; height: 14px; }
+
+.dict-item__del:hover {
+  color: var(--err);
+  background: var(--err-soft);
+  border-color: var(--err-line);
+}
+
+.dict-item__del:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.dict-list__empty {
+  list-style: none;
+  padding: var(--sp-3) 0;
+  color: var(--fg-mute);
+  font-size: 12.5px;
+}
+
+.dict-full { margin-top: var(--sp-2); }
+
+/* 进阶编辑（批量）折叠：沿用 .group__hd 折叠语汇 */
+.dict-adv {
+  margin-top: var(--sp-3);
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-3);
+}
+
+.dict-adv > .group__hd { padding-left: 0; }
+
+.dict-adv[open] > .group__hd::before { transform: rotate(45deg); }
+
+.dict-adv__body {
+  padding-top: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+}
+
+.dict-adv__label {
+  display: block;
+  margin-bottom: var(--sp-2);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* 覆盖确认条（非模态行内，--warn 系配色，与 C-24 破坏性操作同族） */
+.dict-confirm {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: rgba(217, 138, 27, .10);
+  border: 1px solid rgba(217, 138, 27, .35);
+}
+
+.dict-confirm__t {
+  margin: 0 0 var(--sp-2);
+  font-size: 12.5px;
+  color: var(--fg);
+}
+
+/* 仅供读屏的实时播报区（删除条目后播报「已删除 X」） */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ==================================================================
+ * C-65（B2-3）引擎档位二选一 —— 分段式单选
+ * ------------------------------------------------------------------
+ * 两枚 radio 视觉隐藏但保留键盘可达（方向键切换）。
+ * 选中态 = --accent-soft 底 + --accent 边框 + --accent 文字；
+ * 未选中 = --soft 底 + --line 边框 + --fg-mute。
+ * 焦点环复用 box-shadow: 0 0 0 3px var(--accent-soft)。
+ * ================================================================== */
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+  max-width: 420px;
+}
+
+.seg__opt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-0);
+  min-height: 40px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--soft);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+/* 视觉隐藏、但仍在 Tab 序列里、方向键可切换 */
+.seg__opt input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.seg__t {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-mute);
+}
+
+.seg__d {
+  font-size: 12px;
+  color: var(--fg-mute);
+}
+
+.seg__opt:hover { border-color: var(--accent); }
+
+.seg__opt:has(input:checked) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.seg__opt:has(input:checked) .seg__t { color: var(--accent); }
+.seg__opt:has(input:checked) .seg__d { color: var(--accent); }
+
+.seg__opt:has(input:focus-visible) {
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+

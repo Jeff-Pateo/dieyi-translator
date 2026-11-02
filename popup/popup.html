@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>叠译</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="hd">
+    <div class="hd__brand">
+      <img src="../icons/icon32.png" alt="" class="hd__logo">
+      <div class="hd__meta">
+        <div class="hd__title">叠译</div>
+        <div class="hd__sub" id="pageInfo" role="status" aria-live="polite">正在读取当前页面…</div>
+      </div>
+    </div>
+    <label class="switch" title="总开关">
+      <input type="checkbox" id="enabled" aria-label="启用翻译">
+      <span class="switch__slider" aria-hidden="true"></span>
+    </label>
+  </header>
+
+  <div class="notice" id="notice" role="status" aria-live="polite" hidden></div>
+
+  <section class="stats">
+    <div class="stat">
+      <div class="stat__v" id="statTranslated">读取中</div>
+      <div class="stat__k">本页已译</div>
+    </div>
+    <div class="stat">
+      <div class="stat__v stat__v--sm" id="statLang" title="">读取中</div>
+      <div class="stat__k">页面语言</div>
+    </div>
+    <div class="stat">
+      <div class="stat__v stat__v--sm" id="statProvider">读取中</div>
+      <div class="stat__k">生效引擎</div>
+    </div>
+  </section>
+
+  <div class="row">
+    <button class="btn btn--primary" id="btnTranslate">立即翻译</button>
+    <button class="btn" id="btnRestore">还原原文</button>
+  </div>
+
+  <div class="field">
+    <div class="field__k">显示方式</div>
+    <div class="seg" id="modeSeg">
+      <label><input type="radio" name="mode" value="below"><span>原文下方双语</span></label>
+      <label><input type="radio" name="mode" value="replace"><span>仅显示译文</span></label>
+      <label><input type="radio" name="mode" value="hover"><span>悬停查看</span></label>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="field__k">翻译方向</div>
+    <div class="langpair">
+      <select id="sourceLang" class="select select--pair" aria-label="源语言"></select>
+      <button type="button" class="swap" id="btnSwapLang"
+              title="互换源语言与目标语言" aria-label="互换源语言与目标语言">
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M4.2 2.2 1.6 4.8l2.6 2.6.9-.9-1.1-1.1h8.3V4.1H4l1.1-1.1zM11.8 6.9l-.9.9 1.1 1.1H3.9v1.3h8.1l-1.1 1.1.9.9 2.6-2.6z"/>
+        </svg>
+      </button>
+      <select id="targetLang" class="select select--pair" aria-label="目标语言"></select>
+    </div>
+  </div>
+
+  <div class="field field--inline">
+    <label class="field__k" for="provider">翻译引擎</label>
+    <select id="provider" class="select"></select>
+  </div>
+
+  <div class="field field--inline">
+    <label class="field__k" for="autoTranslate">打开页面即翻译</label>
+    <label class="switch switch--sm">
+      <input type="checkbox" id="autoTranslate">
+      <span class="switch__slider"></span>
+    </label>
+  </div>
+
+  <!--
+    划词与 iframe 都做成开关而不是统计数字：
+    统计格是 3 列的固定栅格（v1.6.0 的版面秩序），塞第 4 格会把每格压窄到
+    「英语→简体中文」放不下；而这两项真正的用户价值是「坏了能一键关掉」，
+    不是「看了多少条」。
+  -->
+  <div class="field field--inline">
+    <label class="field__k" for="selectionEnabled">划词翻译</label>
+    <label class="switch switch--sm">
+      <input type="checkbox" id="selectionEnabled">
+      <span class="switch__slider"></span>
+    </label>
+  </div>
+
+  <div class="field field--inline">
+    <label class="field__k" for="iframeEnabled">翻译内嵌框架</label>
+    <label class="switch switch--sm">
+      <input type="checkbox" id="iframeEnabled">
+      <span class="switch__slider"></span>
+    </label>
+  </div>
+
+  <footer class="ft">
+    <button class="link" id="btnBlockSite">此站点不再翻译</button>
+    <button class="link" id="btnOptions">全部设置</button>
+  </footer>
+
+  <script src="../shared/constants.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

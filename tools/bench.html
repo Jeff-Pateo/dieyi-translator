@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>bench</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 0; }
+  article { max-width: 900px; }
+  .sr { position: absolute; }
+</style>
+<!-- 真实扩展会把 content.css 作为注入样式表挂上；基准页也挂上，
+     否则测到的渲染成本比真实情况偏轻，字号相关的结果更是完全量不到。 -->
+<link rel="stylesheet" href="../content/content.css">
+</head>
+<body>
+<div id="sandbox"></div>
+
+<script src="../shared/constants.js"></script>
+<script src="../content/detector.js"></script>
+<script src="../content/renderer.js"></script>
+<script>
+/* ==================================================================
+ * 真实 Chrome 下的性能基准
+ * ------------------------------------------------------------------
+ * 直接在页面上跑 content 脚本的三个真实模块，测量热路径耗时。
+ * 关键测量点是「强制重排」：innerText 会触发布局计算，textContent 不会。
+ * 只有真实浏览器（有布局引擎）才能测出这个差异，jsdom 测不出来。
+ *
+ * 用法：chrome --headless=new --allow-file-access-from-files --dump-dom
+ *        "file:///.../tools/bench.html?n=800"
+ * ================================================================== */
+(function () {
+  'use strict';
+
+  var qs = new URLSearchParams(location.search);
+  var N = Math.max(50, parseInt(qs.get('n') || '800', 10) || 800);
+
+  var SENTENCES = [
+    'The delivery pipeline was rebuilt to remove manual approval steps.',
+    'Cycle time dropped from seven days to five and a quarter days on average.',
+    'Every change must be reviewed by at least one other engineer before merge.',
+    'We measure defect escape rate at the test entry gate instead of at release.',
+    'Capacity planning is based on historical throughput rather than gut feeling.',
+    'The team owns the whole loop from requirement review to production rollback.',
+    'A single owner is assigned to each requirement before development starts.',
+    'Rollback procedures are rehearsed once per quarter with the whole team.',
+    'Stakeholders receive a written status update every Friday afternoon.',
+    'Risk registers are reviewed at the start of every sprint planning session.'
+  ];
+  var WORDS = [
+    'pipeline', 'delivery', 'cycle', 'defect', 'capacity', 'rollback',
+    'requirement', 'stakeholder', 'throughput', 'review', 'merge', 'release'
+  ];
+
+  function sentence(i) {
+    var a = SENTENCES[i % SENTENCES.length];
+    var b = SENTENCES[(i * 7 + 3) % SENTENCES.length];
+    return a + ' ' + b;
+  }
+
+  /* ---------------- 构造合成页面 ---------------- */
+  function build(n) {
+    var sandbox = document.getElementById('sandbox');
+    var frag = document.createDocumentFragment();
+    var pool = [];          // 复用的段落文本，制造重复项
+    var counts = { p: 0, h2: 0, li: 0, td: 0, quote: 0, div: 0, skip: 0 };
+    var host = null;
+
+    for (var i = 0; i < n; i++) {
+      var r = i % 100;
+
+      // 每 40 个块换一个 section 容器，模拟真实的分节结构
+      if (i % 40 === 0) {
+        var section = document.createElement('section');
+        var article = document.createElement('article');
+        article.appendChild(section);
+        frag.appendChild(article);
+        host = section;
+      }
+
+      // 25% 的块直接复用前面的文本（真实页面里导航、按钮、标签高度重复）
+      var text = (r % 4 === 0 && pool.length) ? pool[i % pool.length] : sentence(i);
+      if (pool.length < 60) pool.push(text);
+
+      var el;
+      if (r < 45) {
+        el = document.createElement('p');
+        el.appendChild(document.createTextNode(text.slice(0, 60)));
+        var a = document.createElement('a');
+        a.href = '#x';
+        a.textContent = ' ' + WORDS[i % WORDS.length] + ' ';
+        el.appendChild(a);
+        el.appendChild(document.createTextNode(text.slice(60)));
+        counts.p++;
+      } else if (r < 53) {
+        el = document.createElement('h2');
+        el.textContent = text.slice(0, 48);
+        counts.h2++;
+      } else if (r < 71) {
+        var ul = document.createElement('ul');
+        ul.appendChild(document.createElement('li'));
+        host.appendChild(ul);
+        el = ul.firstChild;
+        el.textContent = text.slice(0, 70);
+        counts.li++;
+      } else if (r < 81) {
+        var table = document.createElement('table');
+        var tr = document.createElement('tr');
+        tr.appendChild(document.createElement('td'));
+        table.appendChild(tr);
+        host.appendChild(table);
+        el = tr.firstChild;
+        el.textContent = text.slice(0, 40);
+        counts.td++;
+      } else if (r < 85) {
+        el = document.createElement('blockquote');
+        el.textContent = text.slice(0, 90);
+        counts.quote++;
+      } else if (r < 90) {
+        el = document.createElement('div');
+        el.appendChild(document.createTextNode(text.slice(0, 55)));
+        counts.div++;
+      } else if (r < 93) {
+        // 代码块：必须被跳过
+        el = document.createElement('pre');
+        var code = document.createElement('code');
+        code.textContent = 'const pipeline = build(' + i + '); pipeline.run();';
+        el.appendChild(code);
+        counts.skip++;
+      } else if (r < 96) {
+        // translate=no：必须被跳过
+        el = document.createElement('div');
+        el.setAttribute('translate', 'no');
+        el.textContent = text.slice(0, 50);
+        counts.skip++;
+      } else if (r < 98) {
+        // 隐藏：必须被跳过（内联 display:none）
+        el = document.createElement('div');
+        el.setAttribute('style', 'display:none');
+        el.textContent = text.slice(0, 50);
+        counts.skip++;
+      } else {
+        el = document.createElement('span');
+        el.textContent = text.slice(0, 30);
+        counts.skip++;
+      }
+
+      if (!el.parentNode) host.appendChild(el);
+    }
+
+    sandbox.appendChild(frag);
+
+    // 少量纯装饰性内联节点，模拟真实页面的图标与徽标
+    for (var j = 0; j < n / 4; j++) {
+      var span = document.createElement('span');
+      span.className = 'sr';
+      span.textContent = '·';
+      host.appendChild(span);
+    }
+    return counts;
+  }
+
+  /* ---------------- 计时工具 ---------------- */
+  function timeIt(fn, reps) {
+    var times = [];
+    for (var i = 0; i < reps; i++) {
+      var t0 = performance.now();
+      fn();
+      times.push(performance.now() - t0);
+    }
+    times.sort(function (a, b) { return a - b; });
+    return {
+      min: +times[0].toFixed(2),
+      med: +times[Math.floor(times.length / 2)].toFixed(2),
+      max: +times[times.length - 1].toFixed(2),
+      all: times.map(function (t) { return +t.toFixed(2); })
+    };
+  }
+
+  var R = CT.renderer;
+  var D = CT.detector;
+  var settings = Object.assign({}, CT.DEFAULT_SETTINGS, { targetLang: 'zh-CN', displayMode: 'below' });
+
+  var report = { n: N, blocks: 0, units: 0, chars: 0 };
+  var counts = build(N);
+  report.blockMix = counts;
+  report.blocks = Object.keys(counts).reduce(function (s, k) { return s + counts[k]; }, 0);
+
+  /* 1) 采集（冷启动：注册表为空） */
+  var units = [];
+  report.collect_cold = timeIt(function () {
+    units = R.collectUnits(document.body, settings);
+  }, 5);
+  report.units = units.length;
+  report.chars = units.reduce(function (s, u) { return s + u.text.length; }, 0);
+
+  /* 2) 文本可译性判定 */
+  var texts = units.map(function (u) { return u.text; });
+  report.translatable = timeIt(function () {
+    for (var i = 0; i < texts.length; i++) D.isTranslatableText(texts[i], 'zh-CN', 2);
+  }, 3);
+
+  /* 3) 语言判定（scriptStats + scoreLatin） */
+  report.detect_lang = timeIt(function () {
+    for (var i = 0; i < texts.length; i++) D.detectTextLanguage(texts[i]);
+  }, 3);
+
+  /* 4) 文本抽取三路对比 —— 隔离「强制重排」与「遍历开销」 */
+  var ps = document.querySelectorAll('#sandbox p');
+  report.pCount = ps.length;
+  var sink = 0;
+  report.innerText = timeIt(function () {
+    for (var i = 0; i < ps.length; i++) sink += ps[i].innerText.length;
+  }, 5);
+  report.textContent = timeIt(function () {
+    for (var i = 0; i < ps.length; i++) sink += (ps[i].textContent || '').length;
+  }, 5);
+  report.extractText = timeIt(function () {
+    for (var i = 0; i < ps.length; i++) sink += R.extractText(ps[i]).length;
+  }, 5);
+  report.sink = sink;
+
+  /* 4b) 跳过判定 —— 采集循环里对每个元素至少调用一次，是 BFS 的主要成本 */
+  var all = document.querySelectorAll('#sandbox *');
+  report.elementCount = all.length;
+  report.skipCheck = timeIt(function () {
+    var hit = 0;
+    for (var i = 0; i < all.length; i++) if (D.shouldSkipElement(all[i], null)) hit++;
+  }, 5);
+  report.skipCheckAlloc = (function () {
+    var noAttr = 0;
+    for (var i = 0; i < all.length; i++) if (!all[i].attributes.length) noAttr++;
+    return noAttr + '/' + all.length;
+  })();
+
+  /* 4c) 子节点遍历方式对比
+   * HTMLCollection 的按下标取值在 Blink 中是 O(index)（内部要逐兄弟走），
+   * 按 idx 循环整个集合可能退化成 O(L²)；firstElementChild/nextElementSibling
+   * 链式遍历是 O(L)。采集循环整体复杂度因此可能是平方级。 */
+  report.childIterIdx = timeIt(function () {
+    var n = 0;
+    for (var i = 0; i < all.length; i++) {
+      var k = all[i].children;
+      for (var j = 0; j < k.length; j++) n += k[j].nodeType;
+    }
+    return n;
+  }, 5);
+  report.childIterLink = timeIt(function () {
+    var n = 0;
+    for (var i = 0; i < all.length; i++) {
+      for (var c = all[i].firstElementChild; c; c = c.nextElementSibling) n += c.nodeType;
+    }
+    return n;
+  }, 5);
+
+  /* 4d) 采集循环分层测量
+   * 注意：把 collectUnits 拆成独立微循环再相加并不可靠 —— 单独测某个函数时
+   * 数据与代码都在缓存里，而真实调用是交织在 DOM 访问之间的。
+   * 因此这里在「同一个循环上下文」里逐层叠加，差值才有意义。 */
+  function walkOnly(root) {
+    var queue = [root], cursor = 0, leaves = 0;
+    while (cursor < queue.length) {
+      var el = queue[cursor++];
+      if (D.shouldSkipElement(el, null)) continue;
+      var kids = el.children, hasBlock = false, cand = [], m = 0;
+      for (var i = 0; i < kids.length; i++) {
+        var c = kids[i];
+        if (D.shouldSkipElement(c, null)) continue;
+        if (D.isInlineElement(c)) { if (c.children.length) cand[m++] = c; }
+        else { hasBlock = true; cand[m++] = c; }
+      }
+      if (hasBlock) { for (var k = 0; k < m; k++) queue.push(cand[k]); continue; }
+      if (D.isInlineElement(el)) continue;
+      leaves++;
+    }
+    return leaves;
+  }
+
+  function walkExtract(root) {
+    var queue = [root], cursor = 0, leaves = 0, acc = 0;
+    while (cursor < queue.length) {
+      var el = queue[cursor++];
+      if (D.shouldSkipElement(el, null)) continue;
+      var kids = el.children, hasBlock = false, cand = [], m = 0;
+      for (var i = 0; i < kids.length; i++) {
+        var c = kids[i];
+        if (D.shouldSkipElement(c, null)) continue;
+        if (D.isInlineElement(c)) { if (c.children.length) cand[m++] = c; }
+        else { hasBlock = true; cand[m++] = c; }
+      }
+      if (hasBlock) { for (var k = 0; k < m; k++) queue.push(cand[k]); continue; }
+      if (D.isInlineElement(el)) continue;
+      var t = R.normalizeText(R.extractText(el));
+      if (t) { acc += CT.settings.hash(t).length; leaves++; }
+    }
+    return leaves + acc;
+  }
+
+  report.phaseWalk = timeIt(function () { walkOnly(document.body); }, 5);
+  report.phaseExtract = timeIt(function () { walkExtract(document.body); }, 5);
+
+  /* 5) 渲染与还原：两种插入方式在同一进程内交替测量 */
+  var beforeHTML = document.getElementById('sandbox').innerHTML;
+
+  function renderAll(insertMode) {
+    var s = Object.assign({}, settings, { insertMode: insertMode });
+    for (var ri = 0; ri < units.length; ri++) {
+      R.renderUnit(units[ri].el, '【译文】' + units[ri].text.slice(0, 10), s, units[ri].hash);
+    }
+    return units.length;
+  }
+  function restoreThenRender(insertMode) {
+    R.restoreAll();
+    return renderAll(insertMode);
+  }
+
+  report.render = timeIt(function () { return renderAll('inside'); }, 1);
+
+  /* 5b) 结构不变量。
+     注意：只数「顶层容器的直接子元素」是不够的 —— 合成页里每个单元都嵌在
+     <article><section> 深处，顶层容器始终只有那几十个 <article>，
+     兄弟插入造成的错位根本反映不到顶层。真正该测的是单元自己那一层：
+       1) 原文元素的 previousElementSibling 是否仍是渲染前那一个 ——
+          它一变，说明译文插进了兄弟位置，相邻兄弟选择器与 :nth-child 全部错位；
+       2) 忽略 .ct-trans 之后的整棵子树形状是否一致 ——
+          保证我们除了自己的译文块之外，没有添加 / 包裹 / 挪动任何页面元素。 */
+  report.structure = (function () {
+    var prevSnap = units.map(function (u) { return u.el.previousElementSibling; });
+    var sigBefore = treeSignature();
+
+    function adjacencyBroken() {
+      var n = 0;
+      for (var i = 0; i < units.length; i++) {
+        if (units[i].el.previousElementSibling !== prevSnap[i]) n++;
+      }
+      return n;
+    }
+    function treeSignature() {
+      var out = [];
+      (function walk(node) {
+        for (var c = node.firstElementChild; c; c = c.nextElementSibling) {
+          if (c.classList && c.classList.contains('ct-trans')) continue;  // 我们自己的节点，跳过
+          out.push(c.tagName + '.' + (c.className || ''));
+          walk(c);
+        }
+      })(document.getElementById('sandbox'));
+      return out.join('|');
+    }
+
+    renderAll('inside');
+    var inside = { adjacencyBroken: adjacencyBroken(), treeIntact: treeSignature() === sigBefore };
+
+    renderAll('sibling');
+    var sibling = { adjacencyBroken: adjacencyBroken(), treeIntact: treeSignature() === sigBefore };
+
+    renderAll('inside');
+    return { units: units.length, inside: inside, sibling: sibling };
+  })();
+
+  /*
+   * 为什么两种插入方式要在【同一进程里交替跑】，而不是拿两轮的 report.render 相减：
+   * render 单次采样里混着「样式首次失效」「JIT 预热」「GC」这些一次性成本，
+   * 前后两轮的差值很容易被噪声吃掉，甚至反号。
+   * 交替各跑 5 次取最小值，两边面对同一台机器、同一份堆、同一个页面，
+   * 差值才是插入方式本身的成本。
+   */
+  report.render_pair = {
+    inside:   timeIt(function () { return renderAll('inside'); },  5).min,
+    sibling:  timeIt(function () { return renderAll('sibling'); }, 5).min,
+    inside2:  timeIt(function () { return renderAll('inside'); },  5).min,
+    sibling2: timeIt(function () { return renderAll('sibling'); }, 5).min
+  };
+
+  // 回到默认方式，后续测量都在默认行为下进行
+  renderAll('inside');
+
+  /*
+   * 5c) 把「写字号变量」的成本单独拆出来。
+   * renderAll('inside') 比 renderAll('sibling') 多做的事只有三件：
+   * 两次 setProperty（--ct-scale / --ct-cap）加一次 classList.add。
+   * refreshFontScale 正好会对每个已渲染节点重跑一遍 applyFontVars，
+   * 于是这次计时就是「2250 × 2 次 setProperty」的净成本，
+   * 用它来判断 render 的那点差值到底该不该去优化。
+   */
+  report.fontVarsCost = timeIt(function () {
+    R.refreshFontScale(settings);
+  }, 5);
+
+  report.collect_warm = timeIt(function () {
+    R.collectUnits(document.body, settings);
+  }, 5);
+
+  /* 6) 单点变更后的重扫范围：这是 MutationObserver 真实触发的调用形态 */
+  var target = null;
+  var pList = document.querySelectorAll('#sandbox p');
+  if (pList.length > 10 && pList[10].querySelector('a')) {
+    target = pList[10].querySelector('a');
+  }
+  if (target) {
+    report.mutation_leaf = timeIt(function () {
+      R.collectUnits(target.parentElement, settings);
+    }, 20);
+    report.mutation_body = timeIt(function () {
+      R.collectUnits(document.body, settings);
+    }, 5);
+  }
+
+  /* 7) 还原成本（同样交替测量） */
+  report.restore = timeIt(function () { return restoreThenRender('inside'); }, 1);
+  report.restore_pair = {
+    inside:   timeIt(function () { return restoreThenRender('inside'); },  4).min,
+    sibling:  timeIt(function () { return restoreThenRender('sibling'); }, 4).min,
+    inside2:  timeIt(function () { return restoreThenRender('inside'); },  4).min,
+    sibling2: timeIt(function () { return restoreThenRender('sibling'); }, 4).min
+  };
+  R.restoreAll();
+
+  /* 8) 还原保真度：必须与初始 HTML 完全一致 */
+  report.restoreClean = (document.getElementById('sandbox').innerHTML === beforeHTML);
+
+  /*
+   * 9) 译文字号实测 —— 只能在这里测。
+   * jsdom 没有布局引擎、也算不出层叠结果，字号到底落在多少 px 只有真实浏览器说了算。
+   * CSS 最终是 font-size: min(--ct-scale, --ct-cap)，于是：
+   *   <p>  16px            → min(85% × 16, cap) = min(13.6, 16) = 13.6px
+   *   <h2> 1.5em ≈ 24px    → min(20.4, 16)      = 16px     ← 被 cap 压住
+   *   <h1> 2em   ≈ 32px    → min(27.2, 16)      = 16px     ← 被 cap 压住
+   * 「标题下的译文与正文一样大」就是这条 cap 在做的事；没有它，h1 下会是 27px。
+   */
+  report.fontSize = (function () {
+    var stage = document.getElementById('sandbox');
+    function probe(tag) {
+      var block = document.createElement(tag);
+      block.textContent = 'Probe sentence used to measure inherited font size.';
+      var node = document.createElement('div');
+      node.className = 'ct-trans ct-trans--in';
+      node.textContent = '字号实测探针';
+      // 字号比例取自默认设置，避免默认值改了而探针还停在旧数字上
+      node.setAttribute('style',
+        '--ct-scale:' + Math.round((CT.DEFAULT_SETTINGS.fontSizeScale || 0.8) * 100) + '%;' +
+        '--ct-cap:' + R.pageBaseFontPx() + 'px');
+      block.appendChild(node);
+      stage.appendChild(block);
+      var out = {
+        hostPx: parseFloat(getComputedStyle(block).fontSize),
+        transPx: parseFloat(getComputedStyle(node).fontSize)
+      };
+      stage.removeChild(block);
+      return out;
+    }
+    return { basePx: R.pageBaseFontPx(), p: probe('p'), h2: probe('h2'), h1: probe('h1') };
+  })();
+
+  document.getElementById('sandbox').remove();
+  var out = document.createElement('pre');
+  out.id = 'out';
+  out.textContent = JSON.stringify(report);
+  document.body.appendChild(out);
+})();
+</script>
+</body>
+</html>

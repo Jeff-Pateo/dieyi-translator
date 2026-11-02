@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  .auto-h    { overflow: hidden; }                  /* 无显式高度 */
+  .fixed-h   { overflow: hidden; height: 22px; }     /* 显式定高 */
+  .cap-h     { overflow: hidden; max-height: 22px; }
+  .clamp-h   { overflow: hidden; -webkit-line-clamp: 2; display: -webkit-box; -webkit-box-orient: vertical; }
+  .vis       { }                                     /* 完全不裁 */
+  .vis-fixed { height: 22px; }                        /* 定高但不裁 */
+  .narrow    { display: inline-block; overflow: hidden; width: 60px; }
+</style></head><body>
+<div id="out"></div>
+<div class="auto-h"    id="a">Some fairly long text that wraps onto more than one line for sure.</div>
+<div class="fixed-h"   id="b">Some fairly long text that wraps onto more than one line for sure.</div>
+<div class="cap-h"     id="c">Some fairly long text that wraps onto more than one line for sure.</div>
+<div class="clamp-h"   id="d">Some fairly long text that wraps onto more than one line for sure.</div>
+<div class="vis"       id="e">Some fairly long text that wraps onto more than one line for sure.</div>
+<div class="vis-fixed" id="f">Some fairly long text that wraps onto more than one line for sure.</div>
+<span class="narrow"   id="g">Some fairly long text</span>
+<script>
+var rows = [];
+['a','b','c','d','e','f','g'].forEach(function (id) {
+  var el = document.getElementById(id);
+  var cs = getComputedStyle(el);
+  rows.push({
+    id: id,
+    display: cs.display,
+    overflow: cs.overflow,
+    overflowX: cs.overflowX,
+    height: cs.height,
+    maxHeight: cs.maxHeight,
+    lineClamp: cs.webkitLineClamp,
+    offsetHeight: el.offsetHeight,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+    rectH: Math.round(el.getBoundingClientRect().height)
+  });
+});
+document.getElementById('out').textContent = JSON.stringify(rows);
+</script>
+</body></html>

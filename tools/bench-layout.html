@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>layout bench</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; }
+  #stage { max-width: 900px; }
+  .scn { margin-bottom: 14px; }
+
+  /* ① 卡片行：flex row + stretch —— 单元是卡片里的 h3/p */
+  .row { display: flex; gap: 12px; align-items: stretch; }
+  .card { flex: 1 1 0; min-width: 0; padding: 12px; border: 1px solid #d5dae2; border-radius: 8px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p { margin: 0; font-size: 13px; }
+
+  /* ② 标签行：横向弹性容器【自身】就是翻译单元 —— 最容易被挤变形的一类。
+        nowrap + 定宽：新项无处可去、也没有富余空间，
+        译文块会被压成一根又窄又高的竖条（截图里左栏那根，就是这个形态）。 */
+  .chips { display: flex; gap: 6px; width: 420px; }
+  .chips > span, .wrapchips > span {
+    padding: 3px 9px; border-radius: 999px; background: #eef2f7; font-size: 12px;
+  }
+
+  /* ②b 同上的可换行版本：译文应当换到新的一行，而不是挤走原有标签 */
+  .wrapchips { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* ②c 横向弹性行里直接放块级段落 —— 兄弟插入会把译文也变成弹性项，
+        从而平分掉三个段落的宽度 */
+  .textrow { display: flex; gap: 10px; }
+  .textrow > p { flex: 1 1 0; min-width: 0; margin: 0; font-size: 13px; }
+
+  /* ③ 内联块 pill：宿主是内联级元素，块级译文会打断行盒并撑高盒子 */
+  .pillrow { line-height: 1.9; }
+  .pill {
+    display: inline-block; padding: 4px 10px; margin-right: 8px;
+    border-radius: 999px; background: #eef2f7; font-size: 12px; white-space: nowrap;
+  }
+
+  /* ④ 网格容器 */
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .grid > div { padding: 10px; border: 1px solid #d5dae2; border-radius: 8px; font-size: 13px; }
+
+  /* ⑤ 表格 */
+  table { border-collapse: collapse; font-size: 13px; }
+  td, th { border: 1px solid #d5dae2; padding: 5px 8px; }
+
+  /* ⑥ 被当作正文显示的 HTML 源码（接口未解码 / 富文本双重转义） */
+  .desc {
+    font-family: ui-monospace, monospace; font-size: 12px; background: #fff6e8;
+    border: 1px solid #f0d9b5; border-radius: 8px; padding: 8px; word-break: break-all;
+  }
+
+  /* ⑦ 窄列：译文一旦被塞进来就会拉成一根竖条 */
+  .narrow { width: 110px; font-size: 13px; }
+  .narrow p { margin: 0; }
+
+  /* ⑧ 结构化数据块 */
+  .jsonld { font-family: ui-monospace, monospace; font-size: 12px; color: #55606e; word-break: break-all; }
+
+  /* ⑨ 行数裁切（-webkit-line-clamp）—— 译文绝不能被塞进这个子树。
+        定宽是为了让内容真的超出 3 行，否则测的只是一个「声明上会裁但实际不裁」的假夹具。 */
+  .clamp {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+    overflow: hidden; width: 320px; font-size: 13px;
+  }
+  .clamp p { margin: 0; }
+
+  /* ⑩ max-height 裁切 —— 站点自己的「展开全文」用固定高度把正文压住。
+        这个高度值通常由站点脚本写在内联样式里，所以这里也用内联样式写，更接近真实。 */
+  .maxh { overflow: hidden; width: 320px; font-size: 13px; }
+  .maxh p { margin: 0; }
+
+  /* ⑪ 零高度折叠区：内容此刻完全不可见。译文插进去同样看不见，
+        所以这一组的正确行为是【一段都不翻】，等用户展开后由 MutationObserver 重扫。 */
+  .collapsed { max-height: 0; overflow: hidden; width: 320px; font-size: 13px; }
+  .collapsed p { margin: 0; }
+
+  /* ================================================================
+   * ⑫–⑮ 遮挡治理夹具（v1.7.1 / S13–S16）
+   * ----------------------------------------------------------------
+   * 为什么要单开一组：⑨⑩ 那两组的裁切是「line-clamp / max-height」写的，
+   * 属于旧判据 clipsContent 已经覆盖的形态。下面这四组则是**旧判据看不见**的写法，
+   * 也正是用户截图里 `高级成长产…` 的成因：
+   *   · 站点把防溢出写在【标题元素自己】身上（.ellip1 / .fixedh）；
+   *   · 宿主是【内联级】元素，我们用 `white-space: inherit` 跟着它一起 nowrap（.npill）。
+   * 它们在几何上「宽度高度都没变」，所以 S1–S5 全绿，但译文确实看不见 ——
+   * 这正是 S5 的盲区，必须由 renderer 的 auditVisibility() 来量。
+   * ================================================================ */
+
+  /* ⑫ 单行省略标题：nowrap + overflow:hidden + text-overflow:ellipsis。
+        截图现场的原型。译文会被站点自己的省略号顺手吃掉。 */
+  .ellip1 {
+    width: 220px; margin: 0; font-size: 16px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ⑬ 定高卡片标题：定高 + overflow:hidden，既没有 line-clamp 也没有 max-height。
+        旧 clipsContent 只认那两样，于是这一整类「卡片标题防溢出」完全不在判据内。 */
+  .fixedh {
+    width: 260px; height: 22px; margin: 0; font-size: 16px;
+    overflow: hidden;
+  }
+
+  /* ⑭ nowrap 药丸行：宿主是内联级元素（inline-block），且行内 nowrap。
+        同一行放两枚，考的是第二级判决的分辨力：
+          · .npill 可以自由变宽  → 放得下 → 必须【维持内联】，不许退化成搬移；
+          · .npill--clip 定宽 70px + overflow:hidden → 放不下 → 必须【搬出去】。
+        两枚放在同一夹具里，是为了让「放得下」与「放不下」在同一份布局下对照。 */
+  .nowraprow { white-space: nowrap; }
+  .npill {
+    display: inline-block; padding: 3px 9px; margin-right: 6px;
+    border-radius: 999px; background: #eef2f7; font-size: 12px;
+    white-space: nowrap;
+  }
+  .npill--clip { width: 70px; overflow: hidden; }
+
+  /* ⑮ line-clamp 摘要：与 ⑨ 同形态，但 clamp 行数是 2（⑨ 是 3）。
+        这一组是【对照组】—— 它必须走既有 clip 分支，
+        行为与 v1.7.0 完全一致，不许因为 v1.7.1 新增第二级而多搬一次。 */
+  .clamp2 {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; width: 300px; font-size: 13px;
+  }
+  .clamp2 p { margin: 0; }
+</style>
+<!-- 真实扩展会把 content.css 作为注入样式表挂上；基准页也必须挂上，
+     否则测到的布局结果与用户看到的不一致。 -->
+<link rel="stylesheet" href="../content/content.css">
+</head>
+<body>
+<div id="stage"></div>
+
+<script src="../shared/constants.js"></script>
+<script src="../content/detector.js"></script>
+<script src="../content/renderer.js"></script>
+<script>
+/* ==================================================================
+ * 布局保真基准（真实 Chrome，有布局引擎）
+ * ------------------------------------------------------------------
+ * 要回答的问题只有一个：注入译文之后，页面上「原本就在的元素」
+ * 有没有被改样。
+ *
+ * 「不改变原页面布局」在这里被拆成五条可执行的判据：
+ *
+ *   S1 结构不变   —— 忽略译文节点后，元素序列、标签与父子关系完全一致。
+ *                    （抓住兄弟插入、包裹、挪动）
+ *   S2 宽度不变小 —— 非译文元素的宽度不能变小。宽度变小只可能是被挤压 /
+ *                    重新分配，绝不可能是「内容变长」的自然结果。
+ *                    （抓住横向弹性容器被塞入新项）
+ *   S3 行内宿主高度不变 —— display 属于 inline 系列的元素高度不能变。
+ *                    行内级元素的盒高由行盒决定，它变了就说明行盒被破坏。
+ *                    （抓住 pill / 标签被撑成两行）
+ *   S4 译文自身不被挤扁 —— 块级译文若只拿到父容器宽度的一个零头，
+ *                    说明它被弹性/网格当成了可压缩子项。
+ *   S5 译文不落进裁切容器 —— overflow:hidden 且带 line-clamp / max-height 的
+ *                    子树会把译文直接吃掉（「被隐藏内容无法显示更多」）；
+ *                    零高度折叠区（max-height:0）则应当一段都不翻。
+ *                    （抓住「翻了但看不见」和「翻了但破坏站点展开全文」）
+ *
+ * S5 与 S1–S4 有一个本质区别：它【不靠几何量报红】。译文被裁掉之后，
+ * 页面所有元素的宽高都不变，前四条判据全绿。所以第五条的信号不是「某个数字变了」，
+ * 而是【译文所在位置属于裁切子树】这个事实判断 —— 必须单独统计。
+ *
+ * ------------------------------------------------------------------
+ * v1.7.1 追加第六条（S6）：译文在几何上【确实看得见】。
+ *
+ * S5 是静态判据：只看 computed style 上有没有 line-clamp / max-height 声明。
+ * 于是「nowrap + overflow:hidden + text-overflow:ellipsis」这类站点写法整条漏掉 ——
+ * 页面所有几何量不变、S5 也全绿，但译文被站点的省略号吃成了 `高级成长产…`。
+ * 这就是用户截图现场，也是本组夹具（S13–S16）存在的唯一理由。
+ *
+ * 第六条的信号由 renderer 自己量：`auditVisibility()` / `auditSummary()`，
+ * 与线上 `#ct-debug` 用的是**同一个函数**，而不是基准页另写一份 ——
+ * 两套判据必然漂移，漂移出来的结论没有价值。
+ *
+ * 明确【不算】破坏的一项：文档整体向下推移、以及承载译文的元素自身变高 ——
+ * 「原文下方双语」模式无法避免，单独作为参考值报告（hOwn / hForeign）。
+ *
+ * 十七类宿主夹具 × REPEAT 份 = 51 个夹具。
+ * 四种跑法在【同一进程内】依次跑同一份页面，同口径对比：
+ *   auto       —— 新默认：按 computed display 分流（冷启动）
+ *   inside     —— 旧默认：一律追加到单元内部
+ *   sibling    —— 一律插到原文之后
+ *   auto_warm  —— auto 的第二次，用来看「一次性成本」有没有退掉
+ *
+ * 注意 inside 行的 after 计数不为 0：裁切判定【优先于 insertMode】，
+ * 所以连「内部追加」模式下，会被裁掉的那几条译文也已经挪到容器之后了。
+ * 也正因为如此，inside 模式下 S13–S16 这几组不会有第二级兜底 ——
+ * 它们只能靠 S6 的审计被看见（见 report.risk.byMode）。
+ *
+ * 用法：bash tools/bench-layout.sh [输出文件]
+ * ================================================================== */
+(function () {
+  'use strict';
+
+  var CT = window.CT;
+  var R = CT.renderer;
+
+  var REPEAT = 3;
+  var GROUPS = ['cards', 'chips', 'wrapchips', 'textrow', 'pills',
+                'grid', 'table', 'markup', 'narrow', 'jsonld',
+                'clamp', 'maxh', 'collapsed',
+                // v1.7.1 遮挡治理四组（S13–S16）。与上面十三组的区别见文件头 S6 说明：
+                // 它们靠 S1–S5 全都「测不出问题」，只能靠 auditVisibility() 看见。
+                'ellip1', 'fixedh', 'pillnowrap', 'clamp2'];
+
+  /** S13–S16 这四组，供 report.risk 与 runMode 的 S6 审计定位 */
+  var RISK_GROUPS = ['ellip1', 'fixedh', 'pillnowrap', 'clamp2'];
+
+  var P1 = 'Move fast, build for the masses, and optimize for the edge cases.';
+  var P2 = 'Own the end to end experience of our storefront.';
+  var P3 = 'Turn raw events into decisions the team can act on.';
+  /** 足够长、一定会超出 3 行的一段话，供裁切夹具使用 */
+  var PLONG = (P1 + ' ' + P2 + ' ' + P3 + ' ').repeat(3);
+
+  function card(title, body) {
+    return '<div class="card"><h3>' + title + '</h3><p>' + body + '</p></div>';
+  }
+
+  var BUILD = {
+    cards: function () {
+      return '<div class="row">'
+        + card('Software engineer', P1)
+        + card('Product designer', P2)
+        + card('Data analyst', P3)
+        + '</div>';
+    },
+    chips: function () {
+      return '<div class="chips">'
+        + '<span>Engineer</span><span>Golang</span><span>Docker</span>'
+        + '<span>Redis</span><span>GCP</span><span>Postgres</span>'
+        + '</div>';
+    },
+    // 用 <div> 而不是 <span>：内联标签按约定永远不作为独立单元，
+    // 会被合并进最近的块级祖先 —— 那就测不到「内联级宿主」这条分支了
+    wrapchips: function () {
+      return '<div class="wrapchips">'
+        + '<span>Engineer</span><span>Golang</span><span>Docker</span>'
+        + '<span>Redis</span><span>GCP</span><span>Postgres</span>'
+        + '</div>';
+    },
+    textrow: function () {
+      return '<div class="textrow">'
+        + '<p>Move fast, build for the masses, and optimize the edge cases.</p>'
+        + '<p>Own the end to end experience of our storefront.</p>'
+        + '<p>Turn raw events into decisions the team can act on.</p>'
+        + '</div>';
+    },
+    pills: function () {
+      return '<div class="pillrow">'
+        + '<div class="pill">Europe</div>'
+        + '<div class="pill">$150k - $250k</div>'
+        + '<div class="pill">Remote</div>'
+        + '</div>';
+    },
+    grid: function () {
+      return '<div class="grid">'
+        + '<div>Own the storefront rendering pipeline.</div>'
+        + '<div>Ship the design system to every surface.</div>'
+        + '<div>Keep the checkout path under one second.</div>'
+        + '</div>';
+    },
+    table: function () {
+      return '<table><tbody>'
+        + '<tr><th>Stage</th><th>Owner</th></tr>'
+        + '<tr><td>Cycle time</td><td>Platform team</td></tr>'
+        + '<tr><td>Lead time</td><td>Growth team</td></tr>'
+        + '</tbody></table>';
+    },
+    // 被当成正文显示的 HTML 源码：应当整个跳过
+    markup: function () {
+      return '<div class="desc">'
+        + '&lt;/p&gt;&lt;/li&gt;&lt;li&gt;&lt;p&gt;Move fast, build for the masses, '
+        + 'and optimize for the edge cases.&lt;/p&gt;&lt;/li&gt;&lt;/ol&gt;&lt;/div&gt;'
+        + '</div>';
+    },
+    narrow: function () {
+      return '<div class="narrow"><p>' + P1 + '</p></div>';
+    },
+    // 结构化数据：应当整个跳过
+    jsonld: function () {
+      return '<div class="jsonld">'
+        + '{&quot;@type&quot;:&quot;JobPosting&quot;,&quot;datePosted&quot;:&quot;2026-09-11&quot;,'
+        + '&quot;baseSalary&quot;:{&quot;@type&quot;:&quot;MonetaryAmount&quot;,'
+        + '&quot;currency&quot;:&quot;USD&quot;,&quot;value&quot;:150000}}'
+        + '</div>';
+    },
+    // 行数裁切：译文必须落到 .clamp 之外，否则被 line-clamp 直接吃掉
+    clamp: function () {
+      return '<div class="clamp"><p>' + PLONG + '</p></div>';
+    },
+    // max-height 裁切：同上，宿主高度固定，译文必须落到它外面
+    maxh: function () {
+      return '<div class="maxh" style="max-height:44px"><p>' + PLONG + '</p></div>';
+    },
+    // 零高度折叠区：应当一段都不翻
+    collapsed: function () {
+      return '<div class="collapsed"><p>' + PLONG + '</p></div>';
+    },
+
+    /* ---------------- S13–S16：遮挡治理 ---------------- */
+
+    // S13 单行省略标题。站点写法：nowrap + overflow:hidden + text-overflow:ellipsis。
+    // 期望：译文被判定为 ellipsized → 搬出标题元素，成为它之后的块级兄弟。
+    // 反例（v1.7.0 的行为）：译文留在 h3 里，被站点自己的省略号吃成「…」。
+    ellip1: function () {
+      return '<div class="card">'
+        + '<h3 class="ellip1">Senior Growth Product Manager AI Native</h3>'
+        + '<p>' + P2 + '</p>'
+        + '</div>';
+    },
+
+    // S14 定高卡片标题。机制与 S13 不同：这里是「定高裁切」，
+    // 既没有 line-clamp 也没有 max-height —— 旧 clipsContent 完全看不见这一类。
+    // 期望：原因为 clipped → 同样搬出去。
+    fixedh: function () {
+      return '<div class="card">'
+        + '<h3 class="fixedh">Senior Growth Product Manager</h3>'
+        + '<p>' + P3 + '</p>'
+        + '</div>';
+    },
+
+    // S15 nowrap 药丸行：同一行里两枚内联级宿主，一枚放得下、一枚放不下。
+    // 用 <div> 而不是 <span>：内联标签按约定永远不作为独立单元，
+    // 会被合并进最近的块级祖先 —— 那就测不到「内联级宿主」这条路径了。
+    // 期望：.npill 维持内联（宿主只是变宽）；.npill--clip 搬出去。
+    pillnowrap: function () {
+      return '<div class="nowraprow">'
+        + '<div class="npill" data-r="fit">Remote</div>'
+        + '<div class="npill npill--clip" data-r="clip">San Francisco Bay Area</div>'
+        + '</div>';
+    },
+
+    // S16 line-clamp 摘要（对照组）。走既有 clip.clip 分支，
+    // 期望：放置结果与 v1.7.0 完全一致（kind=after / reason=clipped），
+    // 且【不】产生任何第二级搬移（stats.relocated 不应因此递增）。
+    clamp2: function () {
+      return '<div class="clamp2"><p>' + PLONG + '</p></div>';
+    }
+  };
+
+  /* ---------------- 合成页面 ---------------- */
+
+  var stage = document.getElementById('stage');
+  var html = '';
+  for (var gi = 0; gi < GROUPS.length; gi++) {
+    for (var ri = 0; ri < REPEAT; ri++) {
+      html += '<div class="scn" data-g="' + GROUPS[gi] + '">' + BUILD[GROUPS[gi]]() + '</div>';
+    }
+  }
+  stage.innerHTML = html;
+  var pristine = stage.innerHTML;
+
+  var CFG = CT.settings.merge(CT.DEFAULT_SETTINGS, {
+    enabled: true,
+    displayMode: 'below',
+    targetLang: 'zh-CN',
+    sourceLang: 'en',
+    minTextLength: 2,
+    maxUnitsPerPage: 4000,
+    fontSizeScale: 0.8,
+    transStyle: 'plain'
+  });
+
+  /* ---------------- 几何快照 ---------------- */
+
+  function isOwn(el) {
+    return !!(el.classList && el.classList.contains(CT.TRANS_CLASS));
+  }
+
+  /**
+   * 按文档顺序记录每一个「非译文元素」的几何与结构位置。
+   * 译文节点连同其子树整体跳过 —— 因此两次快照的元素序列天然对齐。
+   */
+  function snapshot() {
+    var list = [];
+
+    function visit(el, parentIdx, group) {
+      for (var c = el.firstElementChild; c; c = c.nextElementSibling) {
+        if (isOwn(c)) {
+          // 译文节点被跳过，但它让「宿主」变高了 —— 记在宿主头上，
+          // 以便把「承载译文导致的增高」与「被牵连的增高」分开统计
+          if (parentIdx >= 0) list[parentIdx].own = true;
+          continue;
+        }
+        var g = c.getAttribute && c.getAttribute('data-g');
+        var rect = c.getBoundingClientRect();
+        var disp = '';
+        try { disp = getComputedStyle(c).display || ''; } catch (e) { /* ignore */ }
+
+        var idx = list.length;
+        list.push({
+          tag: c.tagName,
+          cls: String(c.className || ''),
+          parent: parentIdx,
+          group: g || group,
+          disp: disp,
+          x: rect.left,
+          y: rect.top,
+          w: rect.width,
+          h: rect.height,
+          own: false
+        });
+        visit(c, idx, g || group);
+      }
+    }
+
+    visit(stage, -1, 'root');
+
+    // own 反向传播：子元素承载了译文 → 其所有祖先的高度变化都属「固有」
+    for (var i = list.length - 1; i >= 0; i--) {
+      if (list[i].own && list[i].parent >= 0) list[list[i].parent].own = true;
+    }
+    return list;
+  }
+
+  var TOL = 0.5;   // px。低于半像素的差异按渲染取整处理
+
+  function isInlineLevel(d) {
+    return d === 'inline' || d === 'inline-block' || d === 'inline-flex' ||
+           d === 'inline-grid' || d === 'inline-table' || d === 'contents';
+  }
+
+  function emptyGroup() {
+    return { n: 0, wShrunk: 0, xMoved: 0, hAll: 0, hForeign: 0, hInline: 0 };
+  }
+
+  function diff(a, b) {
+    var out = {
+      structOk: a.length === b.length,
+      elements: b.length,
+      wShrunk: 0,
+      xMoved: 0,
+      hAll: 0,
+      hForeign: 0,
+      hInline: 0,
+      byGroup: {},
+      samples: []
+    };
+    if (a.length !== b.length) {
+      out.samples.push('元素数 ' + a.length + ' → ' + b.length);
+      return out;
+    }
+
+    for (var i = 0; i < a.length; i++) {
+      var A = a[i];
+      var B = b[i];
+      var gs = out.byGroup[B.group] || (out.byGroup[B.group] = emptyGroup());
+      gs.n++;
+
+      if (A.tag !== B.tag || A.parent !== B.parent) out.structOk = false;
+
+      var dw = B.w - A.w;
+      var dh = B.h - A.h;
+      var dx = B.x - A.x;
+
+      if (dw < -TOL) {
+        out.wShrunk++; gs.wShrunk++;
+        if (out.samples.length < 8) {
+          out.samples.push(B.group + ' ' + B.tag + '.' + B.cls + ' 宽度 ' +
+            A.w.toFixed(1) + '→' + B.w.toFixed(1));
+        }
+      }
+      if (Math.abs(dx) > TOL) { out.xMoved++; gs.xMoved++; }
+      if (Math.abs(dh) > TOL) {
+        out.hAll++; gs.hAll++;
+        if (!B.own) { out.hForeign++; gs.hForeign++; }
+        if (isInlineLevel(B.disp)) { out.hInline++; gs.hInline++; }
+      }
+    }
+    return out;
+  }
+
+  /* ---------------- 统计工具 ---------------- */
+
+  function countTrans(group) {
+    var scns = group
+      ? stage.querySelectorAll('.scn[data-g="' + group + '"]')
+      : [stage];
+    var n = 0;
+    for (var i = 0; i < scns.length; i++) n += scns[i].querySelectorAll('.' + CT.TRANS_CLASS).length;
+    return n;
+  }
+
+  /**
+   * 译文块自身有没有被挤扁。
+   * 一个块级译文如果只有父容器宽度的零头，说明它在弹性/网格布局里被当成了
+   * 一个可以随便压缩的子项 —— 这正是「整页看起来被压变形」的直接来源。
+   * 内联译文天然不占满整行，不参与这项统计。
+   */
+  function transStats() {
+    var nodes = stage.querySelectorAll('.' + CT.TRANS_CLASS);
+    var squeezed = 0;
+    var blocks = 0;
+    var min = Infinity;
+    var worst = '';
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      if (n.classList.contains('ct-trans--inl')) continue;
+      var p = n.parentElement;
+      if (!p) continue;
+      var pw = p.getBoundingClientRect().width;
+      var nw = n.getBoundingClientRect().width;
+      blocks++;
+      if (nw < min) { min = nw; worst = (p.className || p.tagName) + ' 内 ' + Math.round(nw) + 'px'; }
+      // 阈值放到 60%：宿主有内边距时，译文本来就只有内容区那么宽，
+      // 拿它跟宿主的边框盒宽度比会误报。真正的「被挤扁」是只拿到零头。
+      if (pw > 120 && nw < pw * 0.6) squeezed++;
+    }
+    return {
+      blocks: blocks,
+      squeezed: squeezed,
+      minWidth: min === Infinity ? 0 : Math.round(min),
+      worst: worst
+    };
+  }
+
+  function placements(units) {
+    var p = { inline: 0, inside: 0, after: 0 };
+    for (var i = 0; i < units.length; i++) {
+      var k = units[i].plan && units[i].plan.kind;
+      if (k) p[k] = (p[k] || 0) + 1;
+    }
+    return p;
+  }
+
+  /**
+   * 有多少条译文落在「会裁切内容」的子树里。
+   * ------------------------------------------------------------------
+   * 这是「中文翻译后存在被隐藏内容无法显示更多」那条反馈的可量化判据：
+   * 只要有一条译文落在 overflow:hidden 且带 line-clamp / max-height 的容器内，
+   * 它就一定是看不见的 —— 与译文本身对不对无关。
+   * 口径与 renderer 的 clipInfo() 一致：只看 computed style 上的裁切声明，
+   * 不看内容此刻是否真的溢出（站点用脚本切换展开状态时，声明才是稳定信号）。
+   */
+  function clippedTrans() {
+    var nodes = stage.querySelectorAll('.' + CT.TRANS_CLASS);
+    var n = 0;
+    for (var i = 0; i < nodes.length; i++) {
+      var p = nodes[i].parentElement;
+      for (var hop = 0; p && p !== stage.parentElement && hop < 6; hop++, p = p.parentElement) {
+        var st;
+        try { st = getComputedStyle(p); } catch (e) { break; }
+        if (st.overflow !== 'hidden' && st.overflow !== 'clip') continue;
+        var clamp = st.webkitLineClamp;
+        if (clamp && clamp !== 'none' && clamp !== '0') { n++; break; }
+        if (parseFloat(st.maxHeight) > 0) { n++; break; }
+      }
+    }
+    return n;
+  }
+
+  /**
+   * 落到「零高度折叠区」里的译文条数。
+   * 零高度意味着译文此刻必然不可见，插进去等于白翻一遍还占缓存 ——
+   * 期望值是 0，正确行为是等用户展开后由 MutationObserver 重扫。
+   */
+  function collapsedTrans() {
+    return stage.querySelectorAll('.collapsed .' + CT.TRANS_CLASS).length;
+  }
+
+  /* ---------------- 逐个插入方式跑一遍 ---------------- */
+
+  function runMode(mode, label) {
+    R.restoreAll();
+    R.resetStats();          // rescuedFromClip 是 per-mode 的，不清会跨轮累加
+
+    var s = CT.settings.merge(CFG, { insertMode: mode });
+    var before = snapshot();
+
+    var t0 = performance.now();
+    var units = R.collectUnits(stage, s);
+    var tCollect = performance.now() - t0;
+
+    t0 = performance.now();
+    for (var i = 0; i < units.length; i++) {
+      R.renderUnit(units[i].el, '【译文】' + units[i].text.slice(0, 14), s, units[i].hash, units[i].plan);
+    }
+    // 与 content.js 波次循环同口径：渲染完一批就跑一次第二级几何判决。
+    // verifyBatch 与 insertMode 无关（对 inside/sibling 同样生效）——
+    // 这是实现语义，不是基准的自由发挥。
+    // auditPre 是「第二级之前」的快照：它回答反证问题 ——
+    // 如果没有两级验真，S6 会数出多少条不可见译文。
+    var auditPre = R.auditSummary();
+    R.verifyBatch(units.map(function (u) { return u.el; }));
+    var tRender = performance.now() - t0;
+
+    var after = snapshot();
+    var d = diff(before, after);
+
+    d.mode = mode;
+    d.label = label || mode;
+    d.units = units.length;
+    d.placements = placements(units);
+    d.transBlocks = countTrans(null);
+    d.transInMarkup = countTrans('markup');
+    d.transInJsonld = countTrans('jsonld');
+    d.wrapNodes = stage.querySelectorAll('.ct-trans--wrap').length;
+    d.trans = transStats();
+    d.clippedTrans = clippedTrans();
+    d.collapsedTrans = collapsedTrans();
+    d.rescuedFromClip = R.getStats().rescuedFromClip || 0;
+    /*
+     * S6：译文在几何上到底看不看得见。
+     * ------------------------------------------------------------------
+     * 用扩展自己的审计函数，而不是在基准页里另写一份判据 ——
+     * 线上排障（#ct-debug）走的就是这一个，两套判据必然漂移。
+     * 必须在 restoreAll() 之前量：之后译文节点就没了。
+     * 量的是【全部】单元（不只是被圈选的），因为这里求的是完整而不是省成本。
+     */
+    d.audit = R.auditSummary();
+    d.auditPre = { total: auditPre.total, byReason: auditPre.byReason };
+    d.invisible = d.audit.total;
+    d.invisiblePre = auditPre.total;
+    d.visibility = d.invisible === 0 ? 'OK' : (d.invisible + ' 条不可见');
+    d.risk = {
+      suspect: R.getStats().riskSuspect || 0,
+      moved: R.getStats().relocated || 0,
+      unresolved: R.getStats().clipUnresolved || 0
+    };
+    d.collectMs = Math.round(tCollect * 100) / 100;
+    d.renderMs = Math.round(tRender * 100) / 100;
+
+    // S1 结构不变 / S2 无宽度被挤压 / S3 行内宿主高度不变 / S4 译文自身未被压扁
+    // S5 没有译文落进裁切容器或零高度折叠区
+    // （S6 是独立一条，不并进 verdict：那条测的是「看得见」，不是「几何没变」，
+    //   混在一起会让 inside 模式的对照数字失去意义）
+    d.verdict = (d.structOk && d.wShrunk === 0 && d.hInline === 0
+      && d.trans.squeezed === 0 && d.clippedTrans === 0 && d.collapsedTrans === 0)
+      ? 'PASS' : 'FAIL';
+
+    R.restoreAll();
+    d.restoreClean = (stage.innerHTML === pristine);
+
+    return d;
+  }
+
+  var report = {
+    fixtures: REPEAT * GROUPS.length,
+    elements: 0,
+    modes: {}
+  };
+
+  /* 最后一轮把 auto 再跑一次。
+     第一轮的 auto 要为整页付一次样式重算（getComputedStyle 的首次调用），
+     那是【一次性】成本，不是每个元素的边际成本 —— 混在一起会把结论算错。
+     同进程、同页面、同一个堆，两个 auto 的差值就是这一次重算的代价。 */
+  var RUNS = [
+    ['auto', 'auto'],
+    ['inside', 'inside'],
+    ['sibling', 'sibling'],
+    ['auto', 'auto_warm']
+  ];
+  for (var m = 0; m < RUNS.length; m++) {
+    report.modes[RUNS[m][1]] = runMode(RUNS[m][0], RUNS[m][1]);
+  }
+  report.elements = report.modes.auto.elements;
+
+  /* 裁切容器专项。
+     夹具里 clamp / maxh / collapsed 三组各 REPEAT 份：
+       · clamp / maxh —— 正文字段被 line-clamp 或 max-height 裁住。
+         期望 rescuedFromClip > 0（译文被「救」到裁切容器之外），
+         且 clippedTrans === 0（没有任何一条留在里面）。
+       · collapsed —— 零高度折叠区，期望一段都不翻。 */
+  report.clip = {
+    fixtures: 3 * REPEAT,
+    rescuedFromClip: report.modes.auto.rescuedFromClip,
+    clippedTrans: report.modes.auto.clippedTrans,
+    collapsedTrans: report.modes.auto.collapsedTrans,
+    clampGroup: report.modes.auto.byGroup.clamp || null,
+    afterPlacements: report.modes.auto.placements.after || 0
+  };
+
+  // 噪声过滤是否生效：两种方式共用同一套检测层，因此只需看一次
+  report.noise = {    markupUnitsFiltered: report.modes.auto.transInMarkup === 0,
+    jsonldUnitsFiltered: report.modes.auto.transInJsonld === 0,
+    markupMarked: CT.detector.looksLikeMarkup(
+      '</p></li><li><p>Move fast, build for the masses.</p></li></ol></div>'),
+    jsonldMarked: CT.detector.looksLikeDataBlob(
+      '{"@type":"JobPosting","baseSalary":{"@type":"MonetaryAmount"}}'),
+    proseNotMarked: !CT.detector.looksLikeMarkup(
+      'A ratio of 3 < 5 and 7 > 2 is common in prose with angle brackets.')
+  };
+
+  /* ==================================================================
+   * v1.7.1 遮挡治理专项（S13–S16）· S6 自动断言
+   * ------------------------------------------------------------------
+   * 为什么要重跑一遍：上面四次 runMode 每次收尾都 restoreAll()，
+   * 页面上一条译文都不剩，auditVisibility() 无从量起。
+   *
+   * 这一块直接回答文档里 A1–A5 那五条验收：
+   *   A1 单行省略标题   译文必须不在标题元素内，且审计为 0
+   *   A2 定高卡片标题   同上（机制不同：定高裁切而非省略号）
+   *   A3 nowrap 定宽药丸 必须搬出去
+   *   A4 nowrap 自由药丸 必须【维持内联】—— 放得下就不许退化
+   *   A5 line-clamp 摘要 必须仍走既有 clip 分支，不新增搬移
+   *
+   * 断言结果直接以布尔字段写进 JSON：基准是「人看的报告」，
+   * 但判据必须是机器算出来的，不能靠读数字的人自己判断。
+   * ================================================================ */
+  report.risk = (function () {
+    R.restoreAll();
+    R.resetStats();
+
+    var s = CT.settings.merge(CFG, { insertMode: 'auto' });
+
+    var units = [];
+    for (var i = 0; i < RISK_GROUPS.length; i++) {
+      var scns = stage.querySelectorAll('.scn[data-g="' + RISK_GROUPS[i] + '"]');
+      for (var j = 0; j < scns.length; j++) {
+        var part = R.collectUnits(scns[j], s);
+        for (var k = 0; k < part.length; k++) units.push(part[k]);
+      }
+    }
+
+    for (var m = 0; m < units.length; m++) {
+      R.renderUnit(units[m].el, '【译文】' + units[m].text.slice(0, 16),
+        s, units[m].hash, units[m].plan);
+    }
+
+    var suspectBefore = R.getStats().riskSuspect || 0;
+    R.verifyBatch(units.map(function (u) { return u.el; }));
+    var st = R.getStats();
+
+    /* --- 逐条归类：落点、是否搬移、归因 --- */
+    var byGroup = {};
+    var bySelector = {};
+    var unresolved = [];
+
+    function groupOf(el) {
+      var scn = el.closest ? el.closest('.scn') : null;
+      return scn ? (scn.getAttribute('data-g') || '?') : '?';
+    }
+
+    for (var q = 0; q < units.length; q++) {
+      var el = units[q].el;
+      var rec = R.registry.get(el);
+      var g = groupOf(el);
+      var row = byGroup[g] || (byGroup[g] = {
+        n: 0, moved: 0, inline: 0, after: 0, inside: 0, inHost: 0, reasons: {}
+      });
+      row.n++;
+      if (!rec) { unresolved.push({ group: g, tag: el.tagName, verdict: 'no-record' }); continue; }
+
+      if (rec.moved) row.moved++;
+      if (rec.placement === 'inline') row.inline++;
+      if (rec.placement === 'after') row.after++;
+      if (rec.placement === 'inside') row.inside++;
+      /*
+       * 译文是否还留在单元内部（A1/A2 的核心判据）。
+       * 只统计【被第一级圈选过】的单元：同一夹具里的普通段落
+       * （比如标题卡下面的那句描述）本来就该留在内部，
+       * 把它们一起数进来，这个数字就不再是「风险单元的兜底效果」了。
+       */
+      if (rec.node && rec.risk && el.contains && el.contains(rec.node)) row.inHost++;
+      var why = rec.reason || rec.risk || '';
+      if (why) row.reasons[why] = (row.reasons[why] || 0) + 1;
+      if (rec.verdict && rec.verdict.indexOf('unresolved') === 0) {
+        unresolved.push({ group: g, tag: el.tagName, verdict: rec.verdict });
+      }
+
+      // 需要按「同一夹具里的两枚药丸」分别断言，所以按 data-r 再切一刀
+      var rkey = el.getAttribute ? el.getAttribute('data-r') : null;
+      if (rkey) {
+        bySelector[rkey] = {
+          placement: rec.placement,
+          moved: !!rec.moved,
+          risk: rec.risk || '',
+          reason: rec.reason || '',
+          inHost: !!(rec.node && el.contains && el.contains(rec.node)),
+          cls: rec.node ? String(rec.node.className || '') : ''
+        };
+      }
+    }
+
+    var audit = R.auditSummary(stage);
+    var checks = [];
+    function check(name, ok, detail) {
+      checks.push({ name: name, ok: !!ok, detail: detail === undefined ? '' : String(detail) });
+    }
+
+    var g1 = byGroup.ellip1 || {};
+    var g2 = byGroup.fixedh || {};
+    var g3 = byGroup.pillnowrap || {};
+    var g4 = byGroup.clamp2 || {};
+
+    // --- A1 单行省略标题 ---
+    // g1.n 是该组【全部】被采集的单元数（每个夹具除了标题还有副行），
+    // 所以只要求 >= REPEAT：静态圈选本就偏多，真正「搬了几条」由下面两条管。
+    check('A1 单行省略标题：夹具进入第一级圈选范围', (g1.n || 0) >= REPEAT, g1.n);
+    check('A1 译文全部搬出了标题元素', (g1.inHost || 0) === 0, g1.inHost);
+    check('A1 搬移原因是「被站点省略号吃掉」', (g1.reasons['relocated:ellipsized'] || 0) === REPEAT,
+      JSON.stringify(g1.reasons));
+
+    // --- A2 定高卡片标题 ---
+    check('A2 定高卡片标题：夹具进入第一级圈选范围', (g2.n || 0) >= REPEAT, g2.n);
+    check('A2 译文全部搬出了标题元素', (g2.inHost || 0) === 0, g2.inHost);
+    // 归因是 spills-host 而不是 clipped，这是刻意的：
+    // constrainsContent 分不出「声明的定高」（浏览器把 height 解析成使用值），
+    // 所以几何判决只按「越出了 overflow:hidden 的盒子」判 ——
+    // 越界这个事实本身没有分歧，分歧只在「要不要给它更体面的名字」。
+    check('A2 搬移原因是「越出定高容器（几何越界）」',
+      (g2.reasons['relocated:spills-host'] || 0) === REPEAT,
+      JSON.stringify(g2.reasons));
+
+    // --- A3 / A4 同一行里的两枚药丸 ---
+    var fit = bySelector.fit || {};
+    var clip = bySelector.clip || {};
+    check('A3 定宽 nowrap 药丸：译文搬了出去', clip.moved === true, clip.reason);
+    check('A3   → 形态换成 --moved（不再是 --inl）',
+      clip.cls.indexOf('ct-trans--moved') >= 0 && clip.cls.indexOf('ct-trans--inl') < 0, clip.cls);
+    check('A4 自由 nowrap 药丸：译文【维持内联】没有退化',
+      fit.moved === false && fit.placement === 'inline', fit.placement + '/' + fit.moved);
+    check('A4   → 仍然带 --inl（宿主只是变宽）',
+      fit.cls.indexOf('ct-trans--inl') >= 0 && fit.cls.indexOf('ct-trans--moved') < 0, fit.cls);
+    // 被裁的那枚药丸同时写着 overflow:hidden，圈选顺位「会裁」先于「不换行」，
+    // 所以它报 self-constrained（与 test-clip-guard 第二节的先后顺序断言一致）。
+    check('A3/A4 两枚都被第一级圈选（nowrap 宿主）',
+      fit.risk === 'self-nowrap' && (clip.risk === 'self-nowrap' || clip.risk === 'self-constrained'),
+      fit.risk + ' / ' + clip.risk);
+
+    // --- A5 line-clamp 摘要：C-34 后契约 ---
+    // 【契约变更留痕 2026-09-29】旧断言钉的是免检通道时代的行为（第一级静态
+    // 外挪、第二级从不回看 → moved=0）。C-34（P-1）把「搬到裁切容器之外」
+    // 整体移交第二级几何判决：clamp2 摘要是**真裁切**（-webkit-line-clamp 是
+    // 声明值，constrainsContent 判得出），第一级只打标，第二级量出
+    // 「clipped」→ relocate 搬出 → 复验通过。所以新契约是「必须搬、且归因
+    // 是 relocated:clipped」——与 A1（relocated:ellipsized）、A2
+    // （relocated:spills-host）同一形态。「不该动的不动」由 A4 对照钉住。
+    // 本次由性能调优组建立基准时发现（bench-layout 首次在 C-34/C-36 后重跑）。
+    check('A5 line-clamp 摘要：走第二级裁决并搬出（after / relocated:clipped）',
+      (g4.after || 0) === REPEAT && (g4.reasons['relocated:clipped'] || 0) === REPEAT,
+      (g4.after || 0) + ' / ' + JSON.stringify(g4.reasons));
+    check('A5 第二级确实复核了裁切路径（C-34 后契约：必须搬，不许静默）',
+      (g4.moved || 0) === REPEAT, g4.moved);
+
+    // --- S6 总审计 ---
+    check('S6 全部译文在几何上可见（audit.total = 0）', audit.total === 0,
+      JSON.stringify(audit.byReason));
+    check('S6 没有「搬了也没救回来」的单元', st.clipUnresolved === 0, st.clipUnresolved);
+    check('S6 第一级圈选确实命中（不是靠碰运气）',
+      (st.riskSuspect || 0) >= suspectBefore && (st.riskSuspect || 0) > 0, st.riskSuspect);
+
+    /*
+     * 每条夹具的搬移笔数。
+     * 每个夹具各 REPEAT 份，所以期望值是 REPEAT 的整数倍，而不是 1 ——
+     * 这里写死数字是**故意**的：如果哪天有人把 REPEAT 改了，这条会立刻报红，
+     * 提醒他同步核对下面三行的期望值，而不是让断言悄悄跟着变松。
+     */
+    check('S6 省略标题：每个夹具搬走 1 条', (g1.moved || 0) === REPEAT, g1.moved);
+    check('S6 定高标题：每个夹具搬走 1 条', (g2.moved || 0) === REPEAT, g2.moved);
+    check('S6 定宽药丸：每个夹具搬走 1 条（同行的自由药丸不动）',
+      (g3.moved || 0) === REPEAT, g3.moved);
+
+    // --- 反证：没有第二级时 S6 能数出什么 ---
+    // 之前写在 inside 模式上的前提是错的：verifyBatch 与 insertMode 无关，
+    // inside 模式同样会被第二级救援（这是实现语义）。所以反证改锚在
+    // auto 模式的【第二级前后】对比上：auditPre 是只靠第一级会留下的
+    // 不可见译文数，audit 是跑完第二级后的余量 —— 必须归零。
+    var autoMode = report.modes.auto || {};
+    checks.push({
+      name: '反证：第二级之前 S6 数出不可见译文，跑完第二级归零',
+      ok: (autoMode.invisiblePre || 0) > 0 && (autoMode.invisible || 0) === 0,
+      detail: 'pre=' + autoMode.invisiblePre + ' post=' + autoMode.invisible
+    });
+
+    R.restoreAll();
+
+    return {
+      fixtures: RISK_GROUPS.length * REPEAT,
+      groups: byGroup,
+      selector: bySelector,
+      audit: { total: audit.total, byReason: audit.byReason },
+      unresolved: unresolved,
+      checks: checks,
+      pass: checks.every(function (c) { return c.ok; })
+    };
+  })();
+
+  stage.remove();
+  var out = document.createElement('pre');
+  out.id = 'out';
+  out.textContent = JSON.stringify(report);
+  document.body.appendChild(out);
+})();
+</script>
+</body>
+</html>

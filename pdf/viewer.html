@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF 双语对照 · 叠译</title>
+  <link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+
+<!--
+  PDF 自建查看器
+  ------------------------------------------------------------------
+  为什么需要它：Chrome 内置的 PDF 查看器是独立的插件文档，content script
+  无法注入（MDN 在 scripting.executeScript() 文档里点名 PDF viewer），
+  因此没有机会在它上面做双语对照。唯一可控路径是自己用 pdf.js 渲染。
+
+  它由 background 注册的 DNR 动态规则重定向而来，地址形如
+  chrome-extension://<id>/pdf/viewer.html?file=<原始 PDF 地址>
+
+  三条设计约束：
+    1) 必须提供「用 Chrome 原生查看器打开」的出口 —— 否则用户点开 PDF
+       却进了扩展页面，会觉得被劫持。
+    2) 扫描件要【明确提示】而不是静默失败，也绝不落回 OCR。
+    3) 文件在本机解析（pdf.js 从扩展包加载），只有被翻译的文本行会发往引擎。
+-->
+
+<header class="bar">
+  <span class="brand" title="叠译 · PDF 双语对照">PDF</span>
+  <span class="name" id="fileName">加载中…</span>
+
+  <span class="spacer"></span>
+
+  <button type="button" id="btnPrev" title="上一页（←）">‹</button>
+  <span class="pager">
+    <input type="number" id="pageNum" min="1" value="1" aria-label="页码">
+    <span class="of">/</span>
+    <span id="pageCount">–</span>
+  </span>
+  <button type="button" id="btnNext" title="下一页（→）">›</button>
+
+  <span class="gap"></span>
+
+  <button type="button" id="btnZoomOut" title="缩小">−</button>
+  <span class="zoom" id="zoomLabel">100%</span>
+  <button type="button" id="btnZoomIn" title="放大">+</button>
+
+  <span class="spacer"></span>
+
+  <label class="sw" title="在原文下方显示译文">
+    <input type="checkbox" id="chkTrans" checked> 双语对照
+  </label>
+
+  <span class="gap"></span>
+
+  <button type="button" id="btnNative" class="ghost" title="放弃双语对照，改用浏览器自带的查看器">
+    用原生查看器打开
+  </button>
+</header>
+
+<main id="stage">
+  <div class="progress" id="progress"><div class="bar-in"></div></div>
+
+  <div class="page" id="pageWrap" hidden>
+    <canvas id="canvas"></canvas>
+    <div class="textLayer" id="textLayer"></div>
+    <div class="transLayer" id="transLayer"></div>
+  </div>
+
+  <div class="panel" id="panel">
+    <div class="panel__t" id="panelTitle">正在加载 PDF…</div>
+    <div class="panel__d" id="panelDesc">文件只在本机解析，不会上传。</div>
+    <div class="panel__a" id="panelActions" hidden></div>
+  </div>
+</main>
+
+<!-- constants.js 提供消息协议常量；pdf-rules.js 提供原地址解析；
+     pdf-layout.js 是纯函数排版层 -->
+<script src="../shared/constants.js"></script>
+<script src="../background/pdf-rules.js"></script>
+<script src="pdf-layout.js"></script>
+<script type="module" src="viewer.js"></script>
+</body>
+</html>

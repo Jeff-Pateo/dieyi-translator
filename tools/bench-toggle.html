@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>双语助手 · 页内开关性能预算基准</title>
+<!--
+  用真实 Chrome 量页内开关的三件事（PRD 守门指标 G9）：
+
+    1) 挂载成本     —— mount() 是同步执行的，它会插到首屏流水线里。
+                       预算：单次 ≤ 5ms（一个浮层的创建 + attachShadow + appendChild）
+    2) 状态刷新成本 —— 每波译文进度都会调一次 update()。
+                       预算：单次 ≤ 1ms
+    3) 布局中立性   —— 挂载前后，正文区高度、正文区元素数、文档总高度都不能变。
+
+  为什么必须真机跑：jsdom 没有布局引擎，getBoundingClientRect 一律返回 0，
+  「挂载后高度没变」这句话在 jsdom 里恒真 —— 恒真的断言等于没有断言。
+-->
+<style>
+  body { margin: 0; font: 16px/1.6 system-ui, sans-serif; }
+  #stage { width: 900px; margin: 0 auto; padding: 24px 0; }
+  #stage p { margin: 0 0 14px; }
+  #stage .card { display: flex; gap: 12px; }
+  #stage .card > div { flex: 1 1 0; border: 1px solid #ddd; padding: 10px; }
+  /* 模拟站点自己的右下角浮层：开关默认位正好和它撞车 */
+  #backtotop { position: fixed; right: 20px; bottom: 20px; width: 44px; height: 44px;
+               background: #333; color: #fff; border-radius: 50%; }
+  #cookie { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; background: #eee; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="backtotop"></div>
+<div id="cookie"></div>
+<pre id="out"></pre>
+
+<script src="../shared/constants.js"></script>
+<script src="../content/toggle.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- 夹具：一篇有真实体量的长文 ---------------- */
+  var stage = document.getElementById('stage');
+  var PARAS = 600;
+  var html = '';
+  for (var i = 0; i < PARAS; i++) {
+    if (i % 20 === 0) html += '<h2>Section ' + (i / 20) + '</h2>';
+    else if (i % 20 === 7) html += '<div class="card"><div>Left column block ' + i
+      + ' with enough words to wrap</div><div>Right column block ' + i
+      + ' with enough words to wrap</div></div>';
+    else html += '<p>Paragraph number ' + i + ' describing a delivery pipeline step with '
+      + 'several words so that it wraps onto more than one line at this width.</p>';
+  }
+  stage.innerHTML = html;
+
+  /* ---------------- 工具 ---------------- */
+  function stat(list) {
+    var s = list.slice().sort(function (a, b) { return a - b; });
+    return {
+      min: +s[0].toFixed(3),
+      med: +s[Math.floor(s.length / 2)].toFixed(3),
+      max: +s[s.length - 1].toFixed(3)
+    };
+  }
+  function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+
+  var T = window.CT.toggle;
+
+  /* ---------------- ① 挂载成本 ---------------- */
+  var mountRuns = [];
+  for (var k = 0; k < 20; k++) {
+    T.destroy();
+    var t0 = now();
+    T.mount({ collapsed: false });
+    mountRuns.push(now() - t0);
+  }
+
+  /* ---------------- ② 状态刷新成本 ---------------- */
+  var updateRuns = [];
+  var statuses = ['off', 'busy', 'on', 'off', 'unavailable'];
+  for (var u = 0; u < 60; u++) {
+    var t1 = now();
+    T.update({ status: statuses[u % statuses.length], busyText: u + ' / 600' });
+    updateRuns.push(now() - t1);
+  }
+
+  /* ---------------- ③ 布局中立性 ---------------- */
+  T.destroy();
+  var beforeH = stage.getBoundingClientRect().height;
+  var beforeStageKids = stage.querySelectorAll('*').length;
+  var beforeDocH = document.documentElement.scrollHeight;
+  var beforeScrollW = document.documentElement.scrollWidth;
+  var beforeBodyKids = document.body.children.length;
+
+  var t2 = now();
+  T.mount({ collapsed: false });
+  var mountOneShot = now() - t2;
+
+  var afterH = stage.getBoundingClientRect().height;
+  var afterStageKids = stage.querySelectorAll('*').length;
+  var afterDocH = document.documentElement.scrollHeight;
+  var afterScrollW = document.documentElement.scrollWidth;
+  var afterBodyKids = document.body.children.length;
+
+  var host = document.querySelector('.' + T.CLASS);
+  var shadow = host && host.shadowRoot;
+
+  /* ---------------- ④ 可访问性抽样 ---------------- */
+  var mainBtn = shadow ? shadow.querySelector('.main') : null;
+
+  var out = {
+    fixture: {
+      paragraphs: PARAS,
+      elementsInStage: beforeStageKids,
+      stageHeight: Math.round(beforeH)
+    },
+    mount: stat(mountRuns),
+    mountOneShot: +mountOneShot.toFixed(3),
+    update: stat(updateRuns),
+
+    layout: {
+      // 三条都必须为 0 / true：fixed 定位的浮层不该影响任何布局量
+      stageHeightDelta: +(afterH - beforeH).toFixed(2),
+      stageElementsDelta: afterStageKids - beforeStageKids,
+      docHeightDelta: afterDocH - beforeDocH,
+      docScrollWidthDelta: afterScrollW - beforeScrollW,
+      bodyChildrenDelta: afterBodyKids - beforeBodyKids,
+      neutral: (afterH - beforeH) === 0
+        && (afterStageKids - beforeStageKids) === 0
+        && (afterDocH - beforeDocH) === 0
+        && (afterScrollW - beforeScrollW) === 0
+    },
+
+    host: {
+      position: host ? (getComputedStyle(host).position) : null,
+      zIndex: host ? getComputedStyle(host).zIndex : null,
+      insideStage: !!(host && stage.contains(host)),
+      hasSkipAttr: !!(host && host.hasAttribute('data-ct-skip')),
+      hasTranslateNo: !!(host && host.getAttribute('translate') === 'no'),
+      hasShadow: !!shadow
+    },
+
+    a11y: {
+      isButton: !!(mainBtn && mainBtn.tagName === 'BUTTON'),
+      ariaPressed: mainBtn ? mainBtn.getAttribute('aria-pressed') : null,
+      hasName: !!(mainBtn && mainBtn.getAttribute('aria-label'))
+    },
+
+    snapshotTargets: {
+      // 控件不在译文快照的遍历起点（#stage）以内 —— 基准不会把它误算成「页面结构变了」
+      note: '译文快照从 #stage 起算；控件挂在 body 下，因此不进快照'
+    }
+  };
+
+  document.getElementById('out').textContent = JSON.stringify(out);
+})();
+</script>
+</body>
+</html>
